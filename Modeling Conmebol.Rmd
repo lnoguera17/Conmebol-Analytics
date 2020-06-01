@@ -9,26 +9,78 @@ output: html_document
 library(readxl)
 library(tidyverse)
 
-conmebol <- read_csv("conmebol.csv")
+conmebol <- read_csv("conmebol.csv") 
+
+conmebol <- conmebol %>% select(-X1)
 
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Data Cleaning
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
 
-```{r cars}
-summary(cars)
+conmebol <- conmebol %>%
+  mutate(rating = as.numeric(rating))
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+# Data Exploration
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+conmebol %>%
+  mutate(nationality = fct_reorder(nationality, rating)) %>%
+  ggplot(aes(nationality, rating, fill = nationality)) +
+  geom_boxplot() +
+  facet_wrap(~best_position, scales = 'free') +
+  coord_flip()
+
+
+
+conmebol %>%
+  filter(best_position == 'ST') %>%
+  mutate(foot = fct_reorder(foot, rating)) %>%
+  ggplot(aes(foot, rating, fill = foot)) +
+  geom_boxplot() +
+  facet_wrap(~best_position, scales = 'free')
+
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+# Visualization 
+
+## Average per Country
+Overall_avg_LATAM <- ggplot(stats, aes(reorder(nationality, -overall_avg), overall_avg))  +
+  geom_text(aes(label = round(overall_avg,2)), hjust = -0.05) +
+  geom_bar(stat = 'identity')  +
+  labs(y= 'Overall Average',
+       x= "Country") +
+  theme_light() +
+  coord_flip()
+Overall_avg_LATAM
+
+
+# World Map
+
+## Loading Map data
+worldmap <- map_data('world')
+
+merged_data2 <- merge(x = worldmap, y = stats, by.x = 'region', by.y = 'nationality', all.x = TRUE) %>%
+  arrange(order)
+
+overall_map <- ggplot(data = merged_data2, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = overall_avg)) +
+  labs(fill='Total Player Counts')
+overall_map
+
+## Interactive Plot
+ggplotly(overall_map)
+
+
+
+
+```
+

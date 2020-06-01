@@ -1,4 +1,4 @@
-
+library(rvest)
 
 scrape_team_func <- function(x, nationality){
   
@@ -8,6 +8,12 @@ scrape_team_func <- function(x, nationality){
 id <- x %>%
   html_nodes('.col-pi') %>%
   html_text()
+
+#Overall Rating
+rating <- x %>%
+  html_nodes('.col-sort') %>%
+  html_text()
+  
 
 # Player's Names
 name <- x %>%
@@ -91,6 +97,7 @@ total_goalkeeping <- x %>%
 
 # Creating a dataframe with all the info from players
 table <- tibble(id=id, 
+                rating=rating,
                 height=height,
                 name=name,
                 rating=rating,
@@ -265,4 +272,6 @@ ggplotly(overall_map)
 
 
 # Write the file  ####
-write.xlsx(conmebol, file = 'conmebol2.xlsx')
+library(readxl)
+write.csv(conmebol, file = 'conmebol.csv')
+
