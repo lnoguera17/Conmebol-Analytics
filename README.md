@@ -1,13 +1,13 @@
 # Conmebol Soccer Data Analysis
 
-Web Scraping
+## Web Scraping
 - Rvest to scrape SoFifa website
 
-Exploration Data Analysis of South American Soccer Players
+## Exploration Data Analysis of South American Soccer Players
 - Tidyverse ecosystem
 
-Statistical Regression Modelling for Overall Rating
+## Statistical Regression Modelling for Overall Rating
 - Tidymodels ecosystem
 
-Showcase Analysis and Model Deployment
+## Publish Analysis and Model Deployment
 - Shinydashboard 
