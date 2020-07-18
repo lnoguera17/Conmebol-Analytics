@@ -229,45 +229,6 @@ conmebol <- vinotinto %>%
 
 
 
-#Visualizations ####
-##Averages per country. 
-stats <- conmebol %>%
-  group_by(nationality) %>%
-  summarize(number_of_players = n(),
-            overall_avg = mean(overall),
-            passing_avg = mean(passing),
-            physical_avg = mean(physical))
-
-# Visualization 
-
-## Average per Country
-Overall_avg_LATAM <- ggplot(stats, aes(reorder(nationality, -overall_avg), overall_avg))  +
-  geom_text(aes(label = round(overall_avg,2)), hjust = -0.05) +
-  geom_bar(stat = 'identity')  +
-  labs(y= 'Overall Average',
-       x= "Country") +
-  theme_light() +
-  coord_flip()
-Overall_avg_LATAM
-
-
-# World Map
-
-## Loading Map data
-worldmap <- map_data('world')
-
-merged_data2 <- merge(x = worldmap, y = stats, by.x = 'region', by.y = 'nationality', all.x = TRUE) %>%
-  arrange(order)
-
-overall_map <- ggplot(data = merged_data2, aes(x = long, y = lat, group = group)) +
-  geom_polygon(aes(fill = overall_avg)) +
-  labs(fill='Total Player Counts')
-overall_map
-
-## Interactive Plot
-ggplotly(overall_map)
-
-
 
 
 
