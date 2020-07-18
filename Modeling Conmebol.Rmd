@@ -1,5 +1,5 @@
 ---
-title: "Model-FIFA"
+title: "Modein Conmebol"
 author: "Luis Noguera"
 date: "5/31/2020"
 output: html_document
@@ -8,10 +8,11 @@ output: html_document
 ```{r setup, include=FALSE}
 library(readxl)
 library(tidyverse)
+library(plotly)
+
+theme_set(theme_minimal())
 
 conmebol <- read_csv("conmebol.csv") 
-
-conmebol <- conmebol %>% select(-X1)
 
 ```
 
@@ -21,7 +22,12 @@ conmebol <- conmebol %>% select(-X1)
 ```{r}
 
 conmebol <- conmebol %>%
-  mutate(rating = as.numeric(rating))
+  select(-X1) %>%
+  mutate(rating = as.numeric(rating), 
+         value = str_remove(value, "€"),
+         value = str_remove(value, 'M'),
+         value = as.double(value),
+         value = replace_na(value, 0))
 
 ```
 
@@ -29,11 +35,12 @@ conmebol <- conmebol %>%
 # Data Exploration
 
 ```{r}
+
+
 conmebol %>%
-  mutate(nationality = fct_reorder(nationality, rating)) %>%
-  ggplot(aes(nationality, rating, fill = nationality)) +
+  mutate(best_position = fct_reorder(best_position, rating, .fun = median)) %>%
+  ggplot(aes(best_position, rating)) +
   geom_boxplot() +
-  facet_wrap(~best_position, scales = 'free') +
   coord_flip()
 
 
@@ -43,7 +50,7 @@ conmebol %>%
   mutate(foot = fct_reorder(foot, rating)) %>%
   ggplot(aes(foot, rating, fill = foot)) +
   geom_boxplot() +
-  facet_wrap(~best_position, scales = 'free')
+  facet_wrap(~best_position, scales = 'free') 
 
 
 
@@ -68,8 +75,13 @@ Overall_avg_LATAM
 ## Loading Map data
 worldmap <- map_data('world')
 
-merged_data2 <- merge(x = worldmap, y = stats, by.x = 'region', by.y = 'nationality', all.x = TRUE) %>%
-  arrange(order)
+merged_data2 <- conmebol %>% 
+  inner_join(worldmap, by = c('nationality' = 'region')) %>%
+  group_by(nationality) %>%
+  summarise(overall_avg = mean(overall)) %>%
+  ungroup() %>%
+  inner_join(worldmap, by = c('nationality' = 'region')) %>%
+  select(overall_avg, lat, long, nationality, group)
 
 overall_map <- ggplot(data = merged_data2, aes(x = long, y = lat, group = group)) +
   geom_polygon(aes(fill = overall_avg)) +
@@ -80,6 +92,41 @@ overall_map
 ggplotly(overall_map)
 
 
+
+
+```
+
+
+
+```{r}
+
+
+conmebol %>% 
+  filter(value != 0.0) %>%
+  mutate(nationality = fct_lump_min(nationality, 60)) %>%
+  ggplot(aes(value, overall)) +
+  geom_point() +
+  geom_smooth(method = 'gam') +
+  facet_wrap(~nationality, scales = 'free')
+
+
+conmebol_num <- conmebol %>% 
+  select(-id, -height, -name, -best_position, -foot, -nationality)
+
+
+library(GGally)
+
+# Highly correlated dataset - Will try regularization method Lasso or Ridge and a Random Forest model. 
+ggcorr(conmebol_num)
+
+
+```
+
+
+```{r}
+library(tidymodels)
+
+# Initial Split
 
 
 ```
