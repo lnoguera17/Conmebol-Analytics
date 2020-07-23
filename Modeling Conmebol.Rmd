@@ -9,11 +9,14 @@ output: html_document
 library(readxl)
 library(tidyverse)
 library(plotly)
+library(tidymodels)
+library(doParallel)
 
-theme_set(theme_minimal())
+conmebol_raw <- read_csv("conmebol.csv") %>%
+  select(-X1, -rating) 
 
-conmebol <- read_csv("conmebol.csv") 
-
+conmebol_raw %>%
+  mutate(value = parse_number(value)) %>% View()
 ```
 
 
@@ -21,112 +24,122 @@ conmebol <- read_csv("conmebol.csv")
 
 ```{r}
 
-conmebol <- conmebol %>%
-  select(-X1) %>%
-  mutate(rating = as.numeric(rating), 
-         value = str_remove(value, "€"),
-         value = str_remove(value, 'M'),
-         value = as.double(value),
-         value = replace_na(value, 0))
+# Cleaning the value column deleting text and getting the right value of the player.
+conmebol <- conmebol_raw %>%
+  mutate(value = parse_number(value), 
+         value = case_when(value < 99 ~ value * 1000000, 
+                           TRUE ~ value * 1000)) %>%
+  na_if(., 0) %>%
+  select(-height, -name)
+  
+
+# Quick view and summary of the data at hand.
+skimr::skim(conmebol)
 
 ```
 
+# Recipes and Rsample Package
 
-# Data Exploration
+## Data Split
 
 ```{r}
 
+set.seed(415)
 
-conmebol %>%
-  mutate(best_position = fct_reorder(best_position, rating, .fun = median)) %>%
-  ggplot(aes(best_position, rating)) +
-  geom_boxplot() +
-  coord_flip()
+# Split data into training and testing data sets. 
+conmebol_split <- initial_split(conmebol, prop = .8, strata = foot)
+conmebol_train <- training(conmebol_split) 
+conmebol_test <- testing(conmebol_split)
 
-
-
-conmebol %>%
-  filter(best_position == 'ST') %>%
-  mutate(foot = fct_reorder(foot, rating)) %>%
-  ggplot(aes(foot, rating, fill = foot)) +
-  geom_boxplot() +
-  facet_wrap(~best_position, scales = 'free') 
-
-
+# Creates ten folds of the training data set.
+tidy_kfolds <- vfold_cv(conmebol_train)
 
 ```
 
-```{r}
-# Visualization 
-
-## Average per Country
-Overall_avg_LATAM <- ggplot(stats, aes(reorder(nationality, -overall_avg), overall_avg))  +
-  geom_text(aes(label = round(overall_avg,2)), hjust = -0.05) +
-  geom_bar(stat = 'identity')  +
-  labs(y= 'Overall Average',
-       x= "Country") +
-  theme_light() +
-  coord_flip()
-Overall_avg_LATAM
-
-
-# World Map
-
-## Loading Map data
-worldmap <- map_data('world')
-
-merged_data2 <- conmebol %>% 
-  inner_join(worldmap, by = c('nationality' = 'region')) %>%
-  group_by(nationality) %>%
-  summarise(overall_avg = mean(overall)) %>%
-  ungroup() %>%
-  inner_join(worldmap, by = c('nationality' = 'region')) %>%
-  select(overall_avg, lat, long, nationality, group)
-
-overall_map <- ggplot(data = merged_data2, aes(x = long, y = lat, group = group)) +
-  geom_polygon(aes(fill = overall_avg)) +
-  labs(fill='Total Player Counts')
-overall_map
-
-## Interactive Plot
-ggplotly(overall_map)
-
-
-
-
-```
-
+## Preprocessing, feature engineering and eliminiation
 
 
 ```{r}
 
+conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
+  update_role(id, new_role = "id") %>%  # Updating id roles variable
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_knnimpute(value, neighbors = 5) %>%
+  step_corr(all_predictors(), -all_outcomes()) %>%
+  step_normalize(all_predictors(), -all_outcomes()) 
+  
+conmebol_prep <- conmebol_rec %>% prep()
 
-conmebol %>% 
-  filter(value != 0.0) %>%
-  mutate(nationality = fct_lump_min(nationality, 60)) %>%
-  ggplot(aes(value, overall)) +
-  geom_point() +
-  geom_smooth(method = 'gam') +
-  facet_wrap(~nationality, scales = 'free')
+bake(conmebol_prep, conmebol_train)
+
+workflow <- workflow() %>%
+  add_recipe(conmebol_rec)
+
+```
+
+# Parsnip Package
+
+## Fitting Statistical Models - 
+
+- Regularization Model - Lasso Regression
+- Random Forest Model - XGBoost
 
 
-conmebol_num <- conmebol %>% 
-  select(-id, -height, -name, -best_position, -foot, -nationality)
+
+# Lasso Regression
 
 
-library(GGally)
+```{r}
 
-# Highly correlated dataset - Will try regularization method Lasso or Ridge and a Random Forest model. 
-ggcorr(conmebol_num)
+lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) %>%
+  set_engine('glmnet')
+
+lasso_fit <- workflow %>%
+  add_model(lasso_spec) %>%
+  fit(data = conmebol_train)
+
+lasso_fit %>% 
+  pull_workflow_fit()
+
+```
+
+
+# Tuning Lasso
+
+```{r}
+set.seed(415)
+doParallel::registerDoParallel()
+
+lasso_tune <- linear_reg(
+  mode = 'regression',
+  penalty = tune(),
+  mixture = 1
+) %>%
+  set_engine('glmnet')
+
+lambda_grid <- grid_regular(penalty(), levels = 50)
+
+lasso_grid <- tune_grid(
+  workflow %>%
+    add_model(lasso_tune),
+  resamples = bootstrap_conmebol,
+  grid = lambda_grid
+)
+
 
 
 ```
 
 
 ```{r}
-library(tidymodels)
 
-# Initial Split
+
+rf_spec <- rand_forest(
+  min_n = tune(),
+  
+)
+
+
 
 
 ```
