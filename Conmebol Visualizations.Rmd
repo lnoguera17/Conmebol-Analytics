@@ -1,0 +1,135 @@
+---
+title: "Conmebol Visualizations"
+author: "Luis Noguera"
+date: "7/18/2020"
+output: html_document
+---
+
+# Data Load 
+
+```{r setup, include=FALSE}
+library(readxl)
+library(tidyverse)
+library(plotly)
+library(tidymodels)
+
+conmebol_raw <- read_csv("conmebol.csv") %>%
+  select(-X1, -rating) 
+
+```
+
+
+# Data Cleaning
+
+```{r}
+
+conmebol <- conmebol_raw %>%
+  mutate(value = parse_number(value), 
+         value = case_when(value < 100 ~ value * 1000000,
+                           TRUE ~ value *100000)) %>%
+  na_if(., 0)
+  
+```
+
+
+# Data Exploration
+
+```{r}
+
+# Overall Rating by position
+conmebol %>%
+  mutate(best_position = fct_reorder(best_position, rating, .fun = median)) %>%
+  ggplot(aes(best_position, rating)) +
+  geom_boxplot() +
+  coord_flip()
+
+# Overall by foot of ST in the dataset
+
+conmebol %>%
+  filter(best_position == 'ST') %>%
+  mutate(foot = fct_reorder(foot, rating)) %>%
+  ggplot(aes(foot, rating, fill = foot)) +
+  geom_boxplot() +
+  facet_wrap(~best_position, scales = 'free') 
+
+
+
+```
+
+# South America Map Visualization
+
+```{r}
+
+
+## Average per Country Map
+Overall_avg_LATAM <- ggplot(stats, aes(reorder(nationality, -overall_avg), overall_avg))  +
+  geom_text(aes(label = round(overall_avg,2)), hjust = -0.05) +
+  geom_bar(stat = 'identity')  +
+  labs(y= 'Overall Average',
+       x= "Country") +
+  theme_light() +
+  coord_flip()
+Overall_avg_LATAM
+
+
+# World Map
+
+## Loading Map data
+worldmap <- map_data('world')
+
+merged_data2 <- conmebol %>% 
+  inner_join(worldmap, by = c('nationality' = 'region')) %>%
+  group_by(nationality) %>%
+  summarise(overall_avg = mean(overall)) %>%
+  ungroup() %>%
+  inner_join(worldmap, by = c('nationality' = 'region')) %>%
+  select(overall_avg, lat, long, nationality, group)
+
+overall_map <- ggplot(data = merged_data2, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = overall_avg)) +
+  labs(fill='Total Player Counts')
+overall_map
+
+## Interactive Plot
+ggplotly(overall_map)
+
+
+```
+
+# Scatter Plot 
+
+## Market Value and Overall Rating of the Players by Nationality
+
+```{r}
+
+conmebol %>% 
+  filter(value != 0.0) %>%
+  mutate(nationality = fct_lump_min(nationality, 60)) %>%
+  ggplot(aes(value, overall)) +
+  geom_point() +
+  geom_smooth(method = 'gam') +
+  facet_wrap(~nationality, scales = 'free') +
+  scale_x_continuous(labels = scales::dollar_format())
+
+
+```
+
+
+# Correlation among Numerical Variables
+
+
+```{r}
+
+conmebol_num <- conmebol %>% 
+  select(-id, -height, -name, -best_position, -foot, -nationality) %>%
+  mutate(cost = case_when(value > 10000000 ~ "High",
+                                                 TRUE ~ 'Low'),
+                          value = log(value))
+  
+
+library(GGally)
+# Highly correlated dataset - Will try regularization method Lasso or Ridge and a Random Forest model. 
+ggscatmat(conmebol_num, columns = 1:6, color = "cost", alpha =  0.7)
+
+```
+
