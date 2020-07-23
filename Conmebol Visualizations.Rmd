@@ -36,10 +36,10 @@ conmebol <- conmebol_raw %>%
 
 ```{r}
 
-# Overall Rating by position
+# Overall rating by position
 conmebol %>%
-  mutate(best_position = fct_reorder(best_position, rating, .fun = median)) %>%
-  ggplot(aes(best_position, rating)) +
+  mutate(best_position = fct_reorder(best_position, overall, .fun = median)) %>%
+  ggplot(aes(best_position, overall)) +
   geom_boxplot() +
   coord_flip()
 
@@ -47,8 +47,8 @@ conmebol %>%
 
 conmebol %>%
   filter(best_position == 'ST') %>%
-  mutate(foot = fct_reorder(foot, rating)) %>%
-  ggplot(aes(foot, rating, fill = foot)) +
+  mutate(foot = fct_reorder(foot, overall)) %>%
+  ggplot(aes(foot, overall, fill = foot)) +
   geom_boxplot() +
   facet_wrap(~best_position, scales = 'free') 
 
@@ -98,7 +98,7 @@ ggplotly(overall_map)
 
 # Scatter Plot 
 
-## Market Value and Overall Rating of the Players by Nationality
+## Market Value and Overall overall of the Players by Nationality
 
 ```{r}
 
