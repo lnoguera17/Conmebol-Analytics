@@ -51,10 +51,16 @@ conmebol_split <- initial_split(conmebol, prop = .8, strata = foot)
 conmebol_train <- training(conmebol_split) 
 conmebol_test <- testing(conmebol_split)
 
-# Creates ten folds of the training data set.
-tidy_kfolds <- vfold_cv(conmebol_train)
-
 ```
+
+
+
+# 
+
+
+
+
+
 
 ## Preprocessing, feature engineering and eliminiation
 
@@ -65,26 +71,60 @@ conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
   update_role(id, new_role = "id") %>%  # Updating id roles variable
   step_dummy(all_nominal(), -all_outcomes()) %>%
   step_knnimpute(value, neighbors = 5) %>%
-  step_corr(all_predictors(), -all_outcomes()) %>%
-  step_normalize(all_predictors(), -all_outcomes()) 
+  #step_corr(all_numeric(), all_outcomes()) %>%
+  step_normalize(all_predictors(), -all_outcomes())  
   
 conmebol_prep <- conmebol_rec %>% prep()
-
-bake(conmebol_prep, conmebol_train)
 
 workflow <- workflow() %>%
   add_recipe(conmebol_rec)
 
 ```
 
-# Parsnip Package
+
 
 ## Fitting Statistical Models - 
 
+- Linear Regression Model
 - Regularization Model - Lasso Regression
 - Random Forest Model - XGBoost
 
+### Linear Regression Model - (Using this model as baseline)
 
+
+
+**Using Base R to fit a linear model**
+
+
+```{r}
+
+linear_fit <- lm(value ~ ., data = bake(conmebol_prep, conmebol_train))
+
+summary(linear_fit)
+
+```
+
+
+**Tidymodels - Parsnip Package**
+
+
+```{r}
+
+# Fitting a baseline linear regression model 
+linear_mod <- linear_reg(mode = 'regression') %>% 
+  set_engine('lm')
+
+# Including preprocessing steps and fitting the training data
+linear_fit <- workflow %>%
+  add_model(linear_mod) %>%
+  fit(data = conmebol_train)
+
+# Pulling results ad tidying from linear model and workflow. 
+linear_fit %>% 
+  pull_workflow_fit() %>%
+  tidy() 
+
+```
 
 # Lasso Regression
 
@@ -99,7 +139,10 @@ lasso_fit <- workflow %>%
   fit(data = conmebol_train)
 
 lasso_fit %>% 
-  pull_workflow_fit()
+  pull_workflow_fit() %>% 
+  tidy()
+
+
 
 ```
 
@@ -110,25 +153,50 @@ lasso_fit %>%
 set.seed(415)
 doParallel::registerDoParallel()
 
+
+# Creates ten folds of the training data set.
+tidy_kfolds <- vfold_cv(conmebol_train)
+
+
 lasso_tune <- linear_reg(
-  mode = 'regression',
   penalty = tune(),
   mixture = 1
 ) %>%
   set_engine('glmnet')
 
-lambda_grid <- grid_regular(penalty(), levels = 50)
+lambda_grid <- grid_regular(penalty(), 
+                            levels = 25)
 
 lasso_grid <- tune_grid(
   workflow %>%
     add_model(lasso_tune),
-  resamples = bootstrap_conmebol,
+  resamples = tidy_kfolds,
   grid = lambda_grid
 )
 
 
+lasso_grid %>% collect_metrics()
 
 ```
+
+
+```{r}
+lasso_grid %>%
+  collect_metrics() %>%
+  ggplot(aes(penalty, mean, color = .metric)) +
+  geom_errorbar(aes(
+    ymin = mean - std_err,
+    ymax = mean + std_err
+  ),
+  alpha = 0.5
+  ) +
+  geom_line(size = 1.5) +
+  facet_wrap(~.metric, scales = "free", nrow = 2) +
+  scale_x_log10() +
+  theme(legend.position = "none")
+```
+
+
 
 
 ```{r}
