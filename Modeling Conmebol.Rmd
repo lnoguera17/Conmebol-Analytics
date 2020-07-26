@@ -54,14 +54,6 @@ conmebol_test <- testing(conmebol_split)
 ```
 
 
-
-# 
-
-
-
-
-
-
 ## Preprocessing, feature engineering and eliminiation
 
 
@@ -98,33 +90,25 @@ workflow <- workflow() %>%
 
 ```{r}
 
-linear_fit <- lm(value ~ ., data = bake(conmebol_prep, conmebol_train))
+linear_fit <- lm(value ~ ., data = conmebol_train)
 
 summary(linear_fit)
 
+linear_model <- saveRDS(linear_fit, 'linear.model.rds')
+
+random <- conmebol %>%
+  slice(1000) %>% select(-id, -value)
+
+
+predict(linear_fit, new_data = random)
 ```
 
+
+Adjusted R-Squared - 0.68
+Residual Standard Error -  5,438,000
 
 **Tidymodels - Parsnip Package**
 
-
-```{r}
-
-# Fitting a baseline linear regression model 
-linear_mod <- linear_reg(mode = 'regression') %>% 
-  set_engine('lm')
-
-# Including preprocessing steps and fitting the training data
-linear_fit <- workflow %>%
-  add_model(linear_mod) %>%
-  fit(data = conmebol_train)
-
-# Pulling results ad tidying from linear model and workflow. 
-linear_fit %>% 
-  pull_workflow_fit() %>%
-  tidy() 
-
-```
 
 # Lasso Regression
 
@@ -149,13 +133,15 @@ lasso_fit %>%
 
 # Tuning Lasso
 
+# Not Working
+
 ```{r}
 set.seed(415)
 doParallel::registerDoParallel()
 
 
 # Creates ten folds of the training data set.
-tidy_kfolds <- vfold_cv(conmebol_train)
+tidy_kfolds <- vfold_cv(conmebol_train, v = 5)
 
 
 lasso_tune <- linear_reg(
@@ -165,7 +151,7 @@ lasso_tune <- linear_reg(
   set_engine('glmnet')
 
 lambda_grid <- grid_regular(penalty(), 
-                            levels = 25)
+                            levels = 50)
 
 lasso_grid <- tune_grid(
   workflow %>%
@@ -175,9 +161,9 @@ lasso_grid <- tune_grid(
 )
 
 
-lasso_grid %>% collect_metrics()
-
 ```
+
+
 
 
 ```{r}
@@ -197,16 +183,26 @@ lasso_grid %>%
 ```
 
 
+# Non-parametric model - K-Nearest Neighbor
 
+# Not Working
 
 ```{r}
 
 
-rf_spec <- rand_forest(
-  min_n = tune(),
-  
-)
+knn_spec <- nearest_neighbor() %>%
+set_engine('kknn') %>%
+set_mode('regression')
 
+
+knn_fit <- knn_spec %>%
+  fit(value ~., data = bake(conmebol_prep, conmebol_train))
+
+tru_pred <- predict(knn_fit, bake(conmebol_prep, conmebol_test)) %>%
+  bind_cols(bake(conmebol_prep, conmebol_test)) %>%
+  select(value, .pred) %>%
+  rename(truth= value,
+         prediction = .pred)
 
 
 
