@@ -11,6 +11,7 @@ library(tidyverse)
 library(plotly)
 library(tidymodels)
 library(doParallel)
+library(scales)
 
 conmebol_raw <- read_csv("conmebol.csv") %>%
   select(-X1, -rating) 
@@ -38,7 +39,6 @@ skimr::skim(conmebol)
 
 ```
 
-# Recipes and Rsample Package
 
 ## Data Split
 
@@ -54,63 +54,177 @@ conmebol_test <- testing(conmebol_split)
 ```
 
 
-## Preprocessing, feature engineering and eliminiation
-
-
-```{r}
-
-conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
-  update_role(id, new_role = "id") %>%  # Updating id roles variable
-  step_dummy(all_nominal(), -all_outcomes()) %>%
-  step_knnimpute(value, neighbors = 5) %>%
-  #step_corr(all_numeric(), all_outcomes()) %>%
-  step_normalize(all_predictors(), -all_outcomes())  
-  
-conmebol_prep <- conmebol_rec %>% prep()
-
-workflow <- workflow() %>%
-  add_recipe(conmebol_rec)
-
-```
-
-
-
 ## Fitting Statistical Models - 
 
 - Linear Regression Model
+- Linear Regression Model with data Pre-processing. 
 - Regularization Model - Lasso Regression
 - Random Forest Model - XGBoost
 
 ### Linear Regression Model - (Using this model as baseline)
 
+```{r}
+set.seed(415)
+linear_fit <- lm(value ~ . -id, data = conmebol_train)
+summary(linear_fit)
+
+```
 
 
-**Using Base R to fit a linear model**
+Adjusted R-Squared - 0.69
+Residual Standard Error -  $5,503,000
+
+This simple linear model serves as a guideline to improve future statistical models.
+
+
+### Linear Regression Model after Data Pre-Processing
+
+**Data Pre-processing**
+
+How far can we go with a simple linear model and working on data pre-processing. 
+
+The following pre-processings steps have been performed.
+
+- Log transformed the predictor variable *Value* of the player.
+
+- Removed highly correlated features to prevent multicolinearity. 
+
+- Narrowed *best_position* feature to values with a rate of ocurrance greater than 5%.
+
+- Created dummy variable for all categorical variables.
+
+- Impute the outcome *Value* using K-Nearest Neighbors.
+
+- Centered and scaled all predictors.
+
+- Removed possible variables that could contain a single value.
+
+- Removed the *id* variable
 
 
 ```{r}
 
-linear_fit <- lm(value ~ ., data = conmebol_train)
+conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
+  update_role(id, new_role = 'id') %>%  
+  step_log(all_outcomes()) %>%
+  step_corr(all_numeric(), -all_outcomes()) %>%
+  step_other(best_position, threshold = 0.05) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_knnimpute(value, neighbors = 5) %>%
+  step_normalize(all_predictors(), -all_outcomes())  %>%
+  prep()
 
-summary(linear_fit)
+conmebol_train_proc <- bake(conmebol_rec, conmebol_train) %>% select(-id)
+conmebol_test_proc <- bake(conmebol_rec, conmebol_test) %>% select(-id)
 
-linear_model <- saveRDS(linear_fit, 'linear.model.rds')
+  
+```
 
-random <- conmebol %>%
-  slice(1000) %>% select(-id, -value)
+**Linear Regression model with Pre-processed Data**
 
 
-predict(linear_fit, new_data = random)
+Results look promising with a simple linear regression after doing data pre-processing. However, results on the training data set suggest the model has severely overfited the training data. 
+
+```{r}
+
+linear_fit_proc <- lm(value ~., data = conmebol_train_proc)
+summary(linear_fit_proc)
+
+linear_fit_proc_pred <- predict(linear_fit_proc, conmebol_test_proc) %>%
+  as.data.frame() %>%
+  mutate(pred = exp(.)) %>%
+  bind_cols(conmebol_test_proc) %>%
+  mutate(truth = exp(value)) %>%
+  select(pred, truth) 
+
+
+# Root Mean Squared Error Function
+RMSE = function(m, o){
+  sqrt(mean((m - o)^2))
+}
+
+
+attach(linear_fit_proc_pred)
+rmse_test <- scales::comma(RMSE(pred, truth))
+
+```
+
+Root Mean Squared Error on the Validation Set. 
+
+`r rmse_test`
+
+
+### Regularization Models - Lasso Regression
+
+
+```{r}
+
+
+X <- model.matrix(value ~ ., conmebol_train_proc)[, -1]
+
+Y <- (conmebol_train_proc$value)
+
+
+
+ridge <- cv.glmnet(
+  x = X,
+  y = Y,
+  alpha = 0
+)
+
+plot(ridge, xvar = "lambda")
+
+
+lasso <- cv.glmnet(
+  x = X,
+  y = Y,
+  alpha = 1
+)
+
+
+par(mfrow = c(1, 2))
+plot(ridge, main = "Ridge penalty\n\n")
+plot(lasso, main = "Lasso penalty\n\n")
 ```
 
 
-Adjusted R-Squared - 0.68
-Residual Standard Error -  5,438,000
+```{r}
+
+# Ridge model
+ridge_min <- glmnet(
+  x = X,
+  y = Y,
+  alpha = 0
+)
+
+# Lasso model
+lasso_min <- glmnet(
+  x = X,
+  y = Y,
+  alpha = 1
+)
+
+
+par(mfrow = c(1, 2))
+# plot ridge model
+plot(ridge_min, xvar = "lambda", main = "Ridge penalty\n\n")
+abline(v = log(ridge$lambda.min), col = "red", lty = "dashed")
+abline(v = log(ridge$lambda.1se), col = "blue", lty = "dashed")
+
+# plot lasso model
+plot(lasso_min, xvar = "lambda", main = "Lasso penalty\n\n")
+abline(v = log(lasso$lambda.min), col = "red", lty = "dashed")
+abline(v = log(lasso$lambda.1se), col = "blue", lty = "dashed")
+```
+
+
 
 **Tidymodels - Parsnip Package**
 
 
 # Lasso Regression
+
+Since this method is not working I had to try all the previous steps to catch what might be going wrong with the Lasso model using tidymodels. 
 
 
 ```{r}
@@ -125,7 +239,6 @@ lasso_fit <- workflow %>%
 lasso_fit %>% 
   pull_workflow_fit() %>% 
   tidy()
-
 
 
 ```
