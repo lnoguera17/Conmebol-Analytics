@@ -29,4 +29,4 @@ Contributors:
 
 Luis Noguera - https://www.linkedin.com/in/luis-noguera/
 
-Nicolas Kaswalder - https://www.linkedin.com/in/nicolas-kaswalder-152700107/
+Nicolas Kaswalder - https://www.linkedin.com/in/nicolas-kaswalder
