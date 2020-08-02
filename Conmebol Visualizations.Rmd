@@ -1,20 +1,20 @@
 ---
 title: "Conmebol Visualizations"
-author: "Luis Noguera"
+author: "Luis Noguera & Nicolas Kaswalder"
 date: "7/18/2020"
 output: html_document
 ---
 
 # Data Load 
 
-```{r setup, include=FALSE}
-library(readxl)
-library(tidyverse)
-library(plotly)
-library(tidymodels)
+```{r setup, warning= FALSE}}
+pacman::p_load(readr, tidyverse, plotly, tidymodels, mice, kableExtra, stringr)
 
-conmebol_raw <- read_csv("conmebol.csv") %>%
-  select(-X1, -rating) 
+Conmebol_raw <- read.csv("conmebol.csv",
+                     stringsAsFactors = FALSE) %>%
+  select(-X, -rating) 
+
+head(Conmebol_raw, 1000)
 
 ```
 
@@ -22,12 +22,42 @@ conmebol_raw <- read_csv("conmebol.csv") %>%
 # Data Cleaning
 
 ```{r}
+#Lets convert value into a number and clean the names of the players
 
-conmebol <- conmebol_raw %>%
+Conmebol <- Conmebol_raw %>%
   mutate(value = parse_number(value), 
          value = case_when(value < 100 ~ value * 1000000,
-                           TRUE ~ value *100000)) %>%
-  na_if(., 0)
+                           TRUE ~ value *100000),
+         name = str_replace_all(name, "Ã", "i"),
+         name = str_replace_all(name, "i³", "o"),
+         name = str_replace_all(name, "i±", "n"),
+         name = str_replace_all(name, "i¡", "a"),
+         name = str_replace_all(name, "i¼", "u"),
+         name = str_replace_all(name, "i©", "e"),
+         name = str_replace_all(name, "iº", "u"),
+         name = str_replace_all(name, "i£", "a"),
+         name = str_replace_all(name, "i\201", "A"),
+         name = str_replace_all(name, "i´", "o")) %>% 
+  na_if(.,0)
+
+Conmebol_numerical <- Conmebol_raw %>%
+  mutate(value = parse_number(value), 
+         value = case_when(value < 100 ~ value * 1000000,
+                           TRUE ~ value *100000),
+         name = str_replace_all(name, "Ã", "i"),
+         name = str_replace_all(name, "i³", "o"),
+         name = str_replace_all(name, "i±", "n"),
+         name = str_replace_all(name, "i¡", "a"),
+         name = str_replace_all(name, "i¼", "u"),
+         name = str_replace_all(name, "i©", "e"),
+         name = str_replace_all(name, "iº", "u"),
+         name = str_replace_all(name, "i£", "a"),
+         name = str_replace_all(name, "i\201", "A"),
+         name = str_replace_all(name, "i´", "o"))
+
+Conmebol %>% 
+   kable() %>%
+  kable_styling(c("striped", "bordered"))
   
 ```
 
@@ -37,20 +67,34 @@ conmebol <- conmebol_raw %>%
 ```{r}
 
 # Overall rating by position
-conmebol %>%
+Conmebol %>%
   mutate(best_position = fct_reorder(best_position, overall, .fun = median)) %>%
   ggplot(aes(best_position, overall)) +
   geom_boxplot() +
-  coord_flip()
+  coord_flip()+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(
+    panel.border = element_blank(),
+    panel.background = element_rect(colour = "black"),
+plot.title = element_text(color="dark green", size=14, face="bold.italic"),
+axis.title.x = element_text(color="dark blue", size=14, face="bold"),
+axis.title.y = element_text(color="dark red", size=14, face="bold"))+
+  labs(x = "Overall", y = "Best Position", title = 'Overall Rating by Position')
 
-# Overall by foot of ST in the dataset
+# Overall by foot for strikers in the dataset
 
-conmebol %>%
-  filter(best_position == 'ST') %>%
+Conmebol %>%
+  filter(best_position%in% c('ST', 'RW', 'LW', 'CF') ) %>%
   mutate(foot = fct_reorder(foot, overall)) %>%
   ggplot(aes(foot, overall, fill = foot)) +
   geom_boxplot() +
-  facet_wrap(~best_position, scales = 'free') 
+  facet_wrap(~best_position, scales = 'free') +
+  theme(
+plot.title = element_text(color="dark green", size=14, face="bold.italic"),
+axis.title.x = element_text(color="blue", size=14, face="bold"),
+axis.title.y = element_text(color="dark red", size=14, face="bold"))+
+  labs(x = 'Foot', y = 'Overall') +
+  scale_fill_discrete(name="Foot")
 
 
 
@@ -62,8 +106,8 @@ conmebol %>%
 
 
 ## Average per Country Map
-Overall_avg_LATAM <- ggplot(stats, aes(reorder(nationality, -overall_avg), overall_avg))  +
-  geom_text(aes(label = round(overall_avg,2)), hjust = -0.05) +
+Overall_avg_LATAM <- ggplot(Conmebol, aes(reorder(nationality, -overall), overall))  +
+  geom_text(aes(label = round(overall,2)), hjust = -0.05) +
   geom_bar(stat = 'identity')  +
   labs(y= 'Overall Average',
        x= "Country") +
@@ -77,18 +121,18 @@ Overall_avg_LATAM
 ## Loading Map data
 worldmap <- map_data('world')
 
-merged_data2 <- conmebol %>% 
+merged_data2 <- Conmebol_numerical %>% 
   inner_join(worldmap, by = c('nationality' = 'region')) %>%
   group_by(nationality) %>%
-  summarise(overall_avg = mean(overall)) %>%
+  summarise(Overall_Median = median(overall)) %>%
   ungroup() %>%
   inner_join(worldmap, by = c('nationality' = 'region')) %>%
-  select(overall_avg, lat, long, nationality, group)
+  select(Overall_Median, lat, long, nationality, group)
 
 overall_map <- ggplot(data = merged_data2, aes(x = long, y = lat, group = group)) +
-  geom_polygon(aes(fill = overall_avg)) +
+  geom_polygon(aes(fill = Overall_Median)) +
   labs(fill='Total Player Counts')
-overall_map
+
 
 ## Interactive Plot
 ggplotly(overall_map)
@@ -102,7 +146,7 @@ ggplotly(overall_map)
 
 ```{r}
 
-conmebol %>% 
+Conmebol %>% 
   filter(value != 0.0) %>%
   mutate(nationality = fct_lump_min(nationality, 60)) %>%
   ggplot(aes(value, overall)) +
@@ -120,7 +164,7 @@ conmebol %>%
 
 ```{r}
 
-conmebol_num <- conmebol %>% 
+conmebol_num <- Conmebol %>% 
   select(-id, -height, -name, -best_position, -foot, -nationality) %>%
   mutate(cost = case_when(value > 10000000 ~ "High",
                                                  TRUE ~ 'Low'),
