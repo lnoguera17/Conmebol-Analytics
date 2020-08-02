@@ -11,12 +11,15 @@ library(tidyverse)
 library(plotly)
 library(tidymodels)
 library(doParallel)
+library(scales)
+
+theme_set(theme_minimal())
 
 conmebol_raw <- read_csv("conmebol.csv") %>%
   select(-X1, -rating) 
 
 conmebol_raw %>%
-  mutate(value = parse_number(value)) %>% View()
+  mutate(value = parse_number(value)) 
 ```
 
 
@@ -38,9 +41,8 @@ skimr::skim(conmebol)
 
 ```
 
-# Recipes and Rsample Package
 
-## Data Split
+# Data Split
 
 ```{r}
 
@@ -51,124 +53,228 @@ conmebol_split <- initial_split(conmebol, prop = .8, strata = foot)
 conmebol_train <- training(conmebol_split) 
 conmebol_test <- testing(conmebol_split)
 
+
 ```
 
 
-## Preprocessing, feature engineering and eliminiation
+# Fitting Statistical Models - 
 
+- Linear Regression Model
+- Linear Regression Model with data Pre-processing. 
+- Regularization Model - Lasso Regression
+- Random Forest Model - XGBoost
+
+## Linear Regression Model - (Using this model as baseline)
+
+```{r}
+set.seed(415)
+linear_fit <- lm(value ~ . -id, data = conmebol_train)
+summary(linear_fit)
+
+```
+
+
+Adjusted R-Squared - 0.69
+Residual Standard Error -  $5,503,000
+
+This simple linear model serves as a guideline to improve future statistical models.
+
+
+## Data Pre-Processing 
+
+How far can we go with a simple linear model and working on data pre-processing. 
+
+The following pre-processings steps have been performed.
+
+- Log transformed the predictor variable *Value* of the player.
+
+- Removed highly correlated features to prevent multicolinearity. 
+
+- Narrowed *best_position* feature to values with a rate of ocurrance greater than 5%.
+
+- Created dummy variable for all categorical variables.
+
+- Impute the outcome *Value* using K-Nearest Neighbors.
+
+- Centered and scaled all predictors.
+
+- Removed possible variables that could contain a single value.
+
+- Removed the *id* variable
 
 ```{r}
 
 conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
-  update_role(id, new_role = "id") %>%  # Updating id roles variable
+  update_role(id, new_role = 'id') %>%  
+  step_log(all_outcomes()) %>%
+  step_corr(all_numeric(), -all_outcomes()) %>%
+  step_other(best_position, threshold = 0.05) %>%
   step_dummy(all_nominal(), -all_outcomes()) %>%
   step_knnimpute(value, neighbors = 5) %>%
-  #step_corr(all_numeric(), all_outcomes()) %>%
-  step_normalize(all_predictors(), -all_outcomes())  
-  
+  step_normalize(all_predictors(), -all_outcomes())  %>%
+  step_zv(all_predictors()) 
+
 conmebol_prep <- conmebol_rec %>% prep()
 
-workflow <- workflow() %>%
-  add_recipe(conmebol_rec)
+conmebol_train_proc <- bake(conmebol_prep, conmebol_train) %>% select(-id)
+conmebol_test_proc <- bake(conmebol_prep, conmebol_test) %>% select(-id)
+
+  
+```
+
+## Linear Regression Model after Data Pre-Processing
+
+**Linear Regression model with Pre-processed Data**
+
+Results look promising with a simple linear regression after doing data pre-processing. However, results on the training data set suggest the model has severely overfited the training data. 
+
+```{r}
+
+linear_fit_proc <- lm(value ~., data = conmebol_train_proc)
+summary(linear_fit_proc)
+
+linear_fit_proc_pred <- predict(linear_fit_proc, conmebol_test_proc) %>%
+  as.data.frame() %>%
+  mutate(pred = exp(.)) %>%
+  bind_cols(conmebol_test_proc) %>%
+  mutate(truth = exp(value)) %>%
+  select(pred, truth) 
+
+
+# Root Mean Squared Error Function
+RMSE = function(m, o){
+  sqrt(mean((m - o)^2))
+}
+
+
+attach(linear_fit_proc_pred)
+rmse_test <- scales::comma(RMSE(pred, truth))
 
 ```
 
+Root Mean Squared Error on the Validation Set. 
+
+`r rmse_test`
 
 
-## Fitting Statistical Models - 
+## Regularization Models - Lasso Regression - (Book)
 
-- Linear Regression Model
-- Regularization Model - Lasso Regression
-- Random Forest Model - XGBoost
-
-### Linear Regression Model - (Using this model as baseline)
+```{r}
 
 
+X <- model.matrix(value ~ ., conmebol_train_proc)[, -1]
 
-**Using Base R to fit a linear model**
+Y <- (conmebol_train_proc$value)
+
+
+
+ridge <- cv.glmnet(
+  x = X,
+  y = Y,
+  alpha = 0
+)
+
+plot(ridge, xvar = "lambda")
+
+
+lasso <- cv.glmnet(
+  x = X,
+  y = Y,
+  alpha = 1
+)
+
+
+par(mfrow = c(1, 2))
+plot(ridge, main = "Ridge penalty\n\n")
+plot(lasso, main = "Lasso penalty\n\n")
+```
 
 
 ```{r}
 
-linear_fit <- lm(value ~ ., data = conmebol_train)
+# Ridge model
+ridge_min <- glmnet(
+  x = X,
+  y = Y,
+  alpha = 0
+)
 
-summary(linear_fit)
+# Lasso model
+lasso_min <- glmnet(
+  x = X,
+  y = Y,
+  alpha = 1
+)
 
-linear_model <- saveRDS(linear_fit, 'linear.model.rds')
 
-random <- conmebol %>%
-  slice(1000) %>% select(-id, -value)
+par(mfrow = c(1, 2))
+# plot ridge model
+plot(ridge_min, xvar = "lambda", main = "Ridge penalty\n\n")
+abline(v = log(ridge$lambda.min), col = "red", lty = "dashed")
+abline(v = log(ridge$lambda.1se), col = "blue", lty = "dashed")
 
-
-predict(linear_fit, new_data = random)
+# plot lasso model
+plot(lasso_min, xvar = "lambda", main = "Lasso penalty\n\n")
+abline(v = log(lasso$lambda.min), col = "red", lty = "dashed")
+abline(v = log(lasso$lambda.1se), col = "blue", lty = "dashed")
 ```
 
 
-Adjusted R-Squared - 0.68
-Residual Standard Error -  5,438,000
+## Lasso Regression - Tidymodels
 
-**Tidymodels - Parsnip Package**
-
-
-# Lasso Regression
-
-
-```{r}
-
-lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) %>%
-  set_engine('glmnet')
-
-lasso_fit <- workflow %>%
-  add_model(lasso_spec) %>%
-  fit(data = conmebol_train)
-
-lasso_fit %>% 
-  pull_workflow_fit() %>% 
-  tidy()
-
-
-
-```
-
-
-# Tuning Lasso
-
-# Not Working
+Creating resample training dataset and lambda grid for penalization.
 
 ```{r}
 set.seed(415)
-doParallel::registerDoParallel()
+
+wf <- workflow() %>%
+  add_recipe(conmebol_rec)
 
 
-# Creates ten folds of the training data set.
-tidy_kfolds <- vfold_cv(conmebol_train, v = 5)
+# Creating bootstraps of training data to 
+conmebol_boot <- bootstraps(conmebol_train)
 
 
-lasso_tune <- linear_reg(
-  penalty = tune(),
-  mixture = 1
-) %>%
+lasso_spec <- linear_reg(mode = 'regression', 
+                         penalty = tune(),
+                         mixture = 1) %>%
   set_engine('glmnet')
 
-lambda_grid <- grid_regular(penalty(), 
-                            levels = 50)
+
+lambda_grid <- grid_regular(penalty(), levels = 50)
+
+
+```
+
+
+### Fitting resampled data and collecting metrics 
+
+```{r}
+
+
 
 lasso_grid <- tune_grid(
-  workflow %>%
-    add_model(lasso_tune),
-  resamples = tidy_kfolds,
+  wf %>%
+  add_model(lasso_spec),
+  resamples = conmebol_boot,
   grid = lambda_grid
 )
 
 
+
+lasso_tune_results <- lasso_grid %>%  collect_metrics()
+lasso_tune_results
+
 ```
 
 
 
+### Visualizing evalutaion metrics with penalization 
 
 ```{r}
-lasso_grid %>%
-  collect_metrics() %>%
+
+
+lasso_tune_results %>% 
   ggplot(aes(penalty, mean, color = .metric)) +
   geom_errorbar(aes(
     ymin = mean - std_err,
@@ -176,35 +282,71 @@ lasso_grid %>%
   ),
   alpha = 0.5
   ) +
-  geom_line(size = 1.5) +
-  facet_wrap(~.metric, scales = "free", nrow = 2) +
+  geom_line(size  = 1) +
+  facet_wrap(~.metric, scales = 'free', nrow = 2) +
   scale_x_log10() +
   theme(legend.position = "none")
+  
+
 ```
 
-
-# Non-parametric model - K-Nearest Neighbor
-
-# Not Working
+### Finalizing Lasso Model
 
 ```{r}
 
 
-knn_spec <- nearest_neighbor() %>%
-set_engine('kknn') %>%
-set_mode('regression')
+highest_rsq <- lasso_grid %>%
+  select_best('rsq')
+
+final_lasso <- finalize_workflow(
+  wf %>%
+  add_model(lasso_tune),
+  highest_rsq
+)
 
 
-knn_fit <- knn_spec %>%
-  fit(value ~., data = bake(conmebol_prep, conmebol_train))
+```
 
-tru_pred <- predict(knn_fit, bake(conmebol_prep, conmebol_test)) %>%
-  bind_cols(bake(conmebol_prep, conmebol_test)) %>%
-  select(value, .pred) %>%
-  rename(truth= value,
-         prediction = .pred)
+### Variable Importance with Lasso Model
+
+```{r}
+
+library(vip)
+
+final_lasso %>%
+  fit(conmebol_train) %>%
+  pull_workflow_fit() %>%
+  vi(lambda = highest_rsq$penalty)%>%
+  mutate(
+    Importance = abs(Importance),
+    Variable = fct_reorder(Variable, Importance)
+  ) %>%
+  ggplot(aes(x = Importance, y = Variable, fill = Sign)) +
+  geom_col() +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(y = NULL)
 
 
 
 ```
+
+### Final Lasso Fit
+
+Evaluating on validation set. Not so great results.
+
+*Important*
+Unsure about rmse results since the outcome is log transformed. 
+
+```{r}
+
+final_lasso_fit <- last_fit(final_lasso,
+         conmebol_split) %>%
+  collect_metrics() 
+
+final_lasso_fit
+
+
+```
+
+
 
