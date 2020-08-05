@@ -5,39 +5,12 @@ date: "5/31/2020"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-library(readxl)
-library(tidyverse)
-library(plotly)
-library(tidymodels)
-library(doParallel)
-library(scales)
-
-theme_set(theme_minimal())
-
-conmebol_raw <- read_csv("conmebol.csv") %>%
-  select(-X1, -rating) 
-
-conmebol_raw %>%
-  mutate(value = parse_number(value)) 
-```
-
-
-# Data Cleaning
+# Data Load
 
 ```{r}
 
-# Cleaning the value column deleting text and getting the right value of the player.
-conmebol <- conmebol_raw %>%
-  mutate(value = parse_number(value), 
-         value = case_when(value < 99 ~ value * 1000000, 
-                           TRUE ~ value * 1000)) %>%
-  na_if(., 0) %>%
-  select(-height, -name)
-  
+source("Data Cleaning Script.R")
 
-# Quick view and summary of the data at hand.
-skimr::skim(conmebol)
 
 ```
 

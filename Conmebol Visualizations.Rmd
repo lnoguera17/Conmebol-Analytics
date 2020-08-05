@@ -5,61 +5,19 @@ date: "7/18/2020"
 output: html_document
 ---
 
-# Data Load 
 
-```{r setup, warning= FALSE}}
-pacman::p_load(readr, tidyverse, plotly, tidymodels, mice, kableExtra, stringr)
-
-Conmebol_raw <- read.csv("conmebol.csv",
-                     stringsAsFactors = FALSE) %>%
-  select(-X, -rating) 
-
-head(Conmebol_raw, 1000)
-
-```
-
-
-# Data Cleaning
+# Data Load
 
 ```{r}
-#Lets convert value into a number and clean the names of the players
-
-Conmebol <- Conmebol_raw %>%
-  mutate(value = parse_number(value), 
-         value = case_when(value < 100 ~ value * 1000000,
-                           TRUE ~ value *100000),
-         name = str_replace_all(name, "Ã", "i"),
-         name = str_replace_all(name, "i³", "o"),
-         name = str_replace_all(name, "i±", "n"),
-         name = str_replace_all(name, "i¡", "a"),
-         name = str_replace_all(name, "i¼", "u"),
-         name = str_replace_all(name, "i©", "e"),
-         name = str_replace_all(name, "iº", "u"),
-         name = str_replace_all(name, "i£", "a"),
-         name = str_replace_all(name, "i\201", "A"),
-         name = str_replace_all(name, "i´", "o")) %>% 
-  na_if(.,0)
-
-Conmebol_numerical <- Conmebol_raw %>%
-  mutate(value = parse_number(value), 
-         value = case_when(value < 100 ~ value * 1000000,
-                           TRUE ~ value *100000),
-         name = str_replace_all(name, "Ã", "i"),
-         name = str_replace_all(name, "i³", "o"),
-         name = str_replace_all(name, "i±", "n"),
-         name = str_replace_all(name, "i¡", "a"),
-         name = str_replace_all(name, "i¼", "u"),
-         name = str_replace_all(name, "i©", "e"),
-         name = str_replace_all(name, "iº", "u"),
-         name = str_replace_all(name, "i£", "a"),
-         name = str_replace_all(name, "i\201", "A"),
-         name = str_replace_all(name, "i´", "o"))
+source("Data Cleaning Script.R")
 
 Conmebol %>% 
    kable() %>%
   kable_styling(c("striped", "bordered"))
   
 ```
+
+
 
 
 # Data Exploration
@@ -84,7 +42,7 @@ axis.title.y = element_text(color="dark red", size=14, face="bold"))+
 # Overall by foot for strikers in the dataset
 
 Conmebol %>%
-  filter(best_position%in% c('ST', 'RW', 'LW', 'CF') ) %>%
+  filter(best_position%in% c('ST', 'RW', 'LW', 'CF')) %>%
   mutate(foot = fct_reorder(foot, overall)) %>%
   ggplot(aes(foot, overall, fill = foot)) +
   geom_boxplot() +
