@@ -11,7 +11,9 @@ output: html_document
 
 source("Data Cleaning Script.R")
 
-
+Conmebol_model<- Conmebol %>% 
+  select(-id, -name, -height, -value2)
+  
 ```
 
 
@@ -22,33 +24,45 @@ source("Data Cleaning Script.R")
 set.seed(415)
 
 # Split data into training and testing data sets. 
-conmebol_split <- initial_split(conmebol, prop = .8, strata = foot)
+conmebol_split <- initial_split(Conmebol_model, prop = .8, strata = best_position)
 conmebol_train <- training(conmebol_split) 
 conmebol_test <- testing(conmebol_split)
 
 
-```
+# Creating bootstraps of training data to perform re-sampling and tuning methods
+conmebol_boot <- bootstraps(conmebol_train)
 
+```
 
 # Fitting Statistical Models - 
 
-- Linear Regression Model
+- Linear Regression Model - Use as baseline
 - Linear Regression Model with data Pre-processing. 
-- Regularization Model - Lasso Regression
 - Random Forest Model - XGBoost
 
 ## Linear Regression Model - (Using this model as baseline)
 
 ```{r}
 set.seed(415)
-linear_fit <- lm(value ~ . -id, data = conmebol_train)
+linear_fit <- lm(value ~ ., data = conmebol_train)
 summary(linear_fit)
+
+
+# Residual Mean Squared Error of Baseline Model
+linear_fit %>%
+  predict(conmebol_train) %>%
+  as_tibble() %>%
+  mutate(truth = replace_na(conmebol_train$value, 0),
+         model = "Linear Model Baseline") %>%
+  rename("estimate" = "value") %>%
+  rmse(truth = truth, estimate = estimate) 
 
 ```
 
-
+On the Training Data
 Adjusted R-Squared - 0.69
-Residual Standard Error -  $5,503,000
+Residual Mean Squared Error - *EU 6,150,279*
+
 
 This simple linear model serves as a guideline to improve future statistical models.
 
@@ -57,13 +71,13 @@ This simple linear model serves as a guideline to improve future statistical mod
 
 How far can we go with a simple linear model and working on data pre-processing. 
 
-The following pre-processings steps have been performed.
-
-- Log transformed the predictor variable *Value* of the player.
+The following pre-processing steps have been performed.
 
 - Removed highly correlated features to prevent multicolinearity. 
 
-- Narrowed *best_position* feature to values with a rate of ocurrance greater than 5%.
+- Created two variables for *high* and *low* value Outliers
+
+- Narrowed *best_position* feature to values with a rate of occurrence greater than 5%.
 
 - Created dummy variable for all categorical variables.
 
@@ -78,8 +92,10 @@ The following pre-processings steps have been performed.
 ```{r}
 
 conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
-  update_role(id, new_role = 'id') %>%  
-  step_log(all_outcomes()) %>%
+  step_mutate(value_outliers_hi = case_when(value > 60000000 ~ 1, 
+                                            TRUE ~ 0)) %>%
+  step_mutate(value_outliers_lo = case_when(value < 300000 ~ 1,
+                                            TRUE ~ 0)) %>%
   step_corr(all_numeric(), -all_outcomes()) %>%
   step_other(best_position, threshold = 0.05) %>%
   step_dummy(all_nominal(), -all_outcomes()) %>%
@@ -89,45 +105,97 @@ conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
 
 conmebol_prep <- conmebol_rec %>% prep()
 
-conmebol_train_proc <- bake(conmebol_prep, conmebol_train) %>% select(-id)
-conmebol_test_proc <- bake(conmebol_prep, conmebol_test) %>% select(-id)
+conmebol_train_proc <- bake(conmebol_prep, conmebol_train) 
+conmebol_test_proc <- bake(conmebol_prep, conmebol_test) 
 
   
 ```
 
-## Linear Regression Model after Data Pre-Processing
-
-**Linear Regression model with Pre-processed Data**
-
-Results look promising with a simple linear regression after doing data pre-processing. However, results on the training data set suggest the model has severely overfited the training data. 
+# Linear Model with pre-processed data
 
 ```{r}
 
-linear_fit_proc <- lm(value ~., data = conmebol_train_proc)
-summary(linear_fit_proc)
+lin_mod_spec <- linear_reg() %>%
+  set_mode('regression') %>%
+  set_engine('lm')
 
-linear_fit_proc_pred <- predict(linear_fit_proc, conmebol_test_proc) %>%
-  as.data.frame() %>%
-  mutate(pred = exp(.)) %>%
-  bind_cols(conmebol_test_proc) %>%
-  mutate(truth = exp(value)) %>%
-  select(pred, truth) 
+linear_fit_proc <- lin_mod_spec %>%
+  fit(value ~.,
+      data = conmebol_train_proc)
+
+tidy_results_linear <- linear_fit_proc %>%
+  tidy() %>%
+  arrange(p.value) %>%
+  View()
+
+tidy_results_linear
+```
+
+# Random Forest Model
 
 
-# Root Mean Squared Error Function
-RMSE = function(m, o){
-  sqrt(mean((m - o)^2))
-}
+```{r}
 
+rf_mod_spec <- rand_forest() %>%
+  set_mode('regression') %>%
+  set_engine('ranger')
+  
+rf_fit_proc <- rf_mod_spec %>%
+  fit(value ~ ., 
+      data = conmebol_train_proc)
 
-attach(linear_fit_proc_pred)
-rmse_test <- scales::comma(RMSE(pred, truth))
+rf_fit_proc
 
 ```
 
-Root Mean Squared Error on the Validation Set. 
+## Model Evaluation
 
-`r rmse_test`
+**Training Data Evaluation**
+
+```{r}
+
+results_train <- linear_fit_proc %>%
+  predict(conmebol_train_proc) %>%
+  mutate(truth = conmebol_train_proc$value,
+         model = "Linear Model") %>%
+  bind_rows(rf_fit_proc %>%
+  predict(conmebol_train_proc) %>%
+  mutate(truth = conmebol_train_proc$value,
+         model = "Random Forest"))
+  
+results_train  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
+  
+```
+
+**Testing Data Evaluation**
+
+```{r}
+
+testing_train <- linear_fit_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Linear Model") %>%
+  bind_rows(rf_fit_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Random Forest"))
+  
+testing_train  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
+
+```
+
+## Hyperparameter Tuning? 
+
+
+
+
+
+
+# Code below - TBD 
 
 
 ## Regularization Models - Lasso Regression - (Book)
@@ -204,17 +272,13 @@ wf <- workflow() %>%
   add_recipe(conmebol_rec)
 
 
-# Creating bootstraps of training data to 
-conmebol_boot <- bootstraps(conmebol_train)
-
-
 lasso_spec <- linear_reg(mode = 'regression', 
                          penalty = tune(),
                          mixture = 1) %>%
   set_engine('glmnet')
 
 
-lambda_grid <- grid_regular(penalty(), levels = 50)
+lambda_grid <- grid_regular(penalty(), levels = 5)
 
 
 ```
@@ -239,8 +303,6 @@ lasso_tune_results <- lasso_grid %>%  collect_metrics()
 lasso_tune_results
 
 ```
-
-
 
 ### Visualizing evalutaion metrics with penalization 
 
