@@ -18,9 +18,29 @@ Conmebol %>%
 ```
 
 
-
-
 # Data Exploration
+
+
+# Basic Histogram of Player's Value
+
+```{r}
+
+Conmebol %>% 
+  ggplot(aes(value)) +
+  geom_histogram() +
+  scale_x_continuous(labels = comma)
+
+Conmebol %>% 
+  select(value) %>% 
+  summary()
+
+```
+
+*Insights*
+
+- Biggest portion of the players are under $EU 30,000,000$
+- A very small number of players above $EU 60,000,000$ and 2 players above $EU 90,000,000$
+- Median of $EU 3,400,000$
 
 ```{r}
 
