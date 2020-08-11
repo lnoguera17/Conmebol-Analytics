@@ -163,7 +163,7 @@ results_train <- linear_fit_proc %>%
   mutate(truth = conmebol_train_proc$value,
          model = "Random Forest"))
   
-results_train  %>%
+results_train_grouped <- results_train  %>%
   group_by(model) %>%
   rmse(truth = truth, estimate = .pred)
   
@@ -173,7 +173,7 @@ results_train  %>%
 
 ```{r}
 
-testing_train <- linear_fit_proc %>%
+results_test <- linear_fit_proc %>%
   predict(conmebol_test_proc) %>%
   mutate(truth = conmebol_test_proc$value,
          model = "Linear Model") %>%
@@ -182,13 +182,112 @@ testing_train <- linear_fit_proc %>%
   mutate(truth = conmebol_test_proc$value,
          model = "Random Forest"))
   
-testing_train  %>%
+results_test_grouped <- results_test  %>%
   group_by(model) %>%
   rmse(truth = truth, estimate = .pred)
 
+results_test_grouped
 ```
 
-## Hyperparameter Tuning? 
+## Hyperparameter Tuning
+
+
+```{r}
+
+rf_tune_spec <- rand_forest(
+  mtry = tune(),
+  trees = 500,
+  min_n = tune(),
+) %>%
+  set_mode('regression') %>%
+  set_engine('ranger')
+
+tune_rf_workflow <- workflow() %>%
+  add_recipe(conmebol_rec) %>% 
+  add_model(rf_tune_spec)
+
+```
+
+```{r}
+doParallel::registerDoParallel()
+set.seed(415)
+
+
+# Choosing the resample method and training the data - In this case, bootsrap. 
+
+tune_res <- tune_grid(
+  tune_rf_workflow,
+  resamples = conmebol_boot,
+  grid = 10
+)
+
+tune_res
+
+```
+
+## Visualizing Hyperparameters of Random Forest
+
+```{r}
+
+tune_res %>%
+  collect_metrics() %>% 
+  filter(.metric == 'rmse') %>% 
+  select(mtry, min_n, mean) %>% 
+  pivot_longer(min_n:mtry,
+               values_to = 'value',
+               names_to = 'parameter'
+               ) %>% 
+   ggplot(aes(value, mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(x = NULL, y = "Residual Mean Squared Error") +
+  scale_y_continuous(label = scales::comma)
+  
+
+```
+
+This can be improved iterating and focusing on larger mtry values and narrowing down the min_n.
+
+## Final Random Forest Model 
+
+*Tuned Hyperparameters*
+
+```{r}
+
+best_rmse <- select_best(tune_res, metric = 'rmse')
+
+final_rf_tune <- finalize_model(
+  rf_tune_spec,
+  best_rmse
+)
+
+```
+
+
+```{r}
+library(vip)
+
+rf_tuned_proc <- final_rf_tune %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(value ~ ., 
+      data = conmebol_train_proc)
+
+results_test_tuned <- results_test %>% 
+  bind_rows(rf_tuned_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Random Forest Tuned")) 
+
+
+results_test_tuned_grouped <- results_test_tuned  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
+
+
+results_test_tuned_grouped
+
+
+```
 
 
 
