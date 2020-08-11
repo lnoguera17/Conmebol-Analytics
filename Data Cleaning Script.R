@@ -15,7 +15,7 @@ Conmebol <- Conmebol_raw %>%
          value = case_when(value2 == "M" ~ value * 1000000,
                            value2 == "K" ~ value * 1000,
                            TRUE ~ 0)) %>% 
-  na_if(.,0)
-
-
-
+  na_if(.,0) %>% 
+  separate(height, c("Foot", "Inches")) %>%
+  mutate(height = as.double(str_c(Foot, '.', Inches))) %>% 
+  select(-Foot, -Inches, -value2)
