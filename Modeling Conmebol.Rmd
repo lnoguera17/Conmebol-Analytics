@@ -163,7 +163,7 @@ results_train <- linear_fit_proc %>%
   mutate(truth = conmebol_train_proc$value,
          model = "Random Forest"))
   
-results_train  %>%
+results_train_grouped <- results_train  %>%
   group_by(model) %>%
   rmse(truth = truth, estimate = .pred)
   
@@ -173,7 +173,7 @@ results_train  %>%
 
 ```{r}
 
-testing_train <- linear_fit_proc %>%
+results_test <- linear_fit_proc %>%
   predict(conmebol_test_proc) %>%
   mutate(truth = conmebol_test_proc$value,
          model = "Linear Model") %>%
@@ -182,206 +182,111 @@ testing_train <- linear_fit_proc %>%
   mutate(truth = conmebol_test_proc$value,
          model = "Random Forest"))
   
-testing_train  %>%
+results_test_grouped <- results_test  %>%
   group_by(model) %>%
   rmse(truth = truth, estimate = .pred)
 
+results_test_grouped
 ```
 
-## Hyperparameter Tuning? 
-
-
-
-
-
-
-# Code below - TBD 
-
-
-## Regularization Models - Lasso Regression - (Book)
-
-```{r}
-
-
-X <- model.matrix(value ~ ., conmebol_train_proc)[, -1]
-
-Y <- (conmebol_train_proc$value)
-
-
-
-ridge <- cv.glmnet(
-  x = X,
-  y = Y,
-  alpha = 0
-)
-
-plot(ridge, xvar = "lambda")
-
-
-lasso <- cv.glmnet(
-  x = X,
-  y = Y,
-  alpha = 1
-)
-
-
-par(mfrow = c(1, 2))
-plot(ridge, main = "Ridge penalty\n\n")
-plot(lasso, main = "Lasso penalty\n\n")
-```
+## Hyperparameter Tuning
 
 
 ```{r}
 
-# Ridge model
-ridge_min <- glmnet(
-  x = X,
-  y = Y,
-  alpha = 0
-)
+rf_tune_spec <- rand_forest(
+  mtry = tune(),
+  trees = 500,
+  min_n = tune(),
+) %>%
+  set_mode('regression') %>%
+  set_engine('ranger')
 
-# Lasso model
-lasso_min <- glmnet(
-  x = X,
-  y = Y,
-  alpha = 1
-)
+tune_rf_workflow <- workflow() %>%
+  add_recipe(conmebol_rec) %>% 
+  add_model(rf_tune_spec)
 
-
-par(mfrow = c(1, 2))
-# plot ridge model
-plot(ridge_min, xvar = "lambda", main = "Ridge penalty\n\n")
-abline(v = log(ridge$lambda.min), col = "red", lty = "dashed")
-abline(v = log(ridge$lambda.1se), col = "blue", lty = "dashed")
-
-# plot lasso model
-plot(lasso_min, xvar = "lambda", main = "Lasso penalty\n\n")
-abline(v = log(lasso$lambda.min), col = "red", lty = "dashed")
-abline(v = log(lasso$lambda.1se), col = "blue", lty = "dashed")
 ```
 
-
-## Lasso Regression - Tidymodels
-
-Creating resample training dataset and lambda grid for penalization.
-
 ```{r}
+doParallel::registerDoParallel()
 set.seed(415)
 
-wf <- workflow() %>%
-  add_recipe(conmebol_rec)
 
+# Choosing the resample method and training the data - In this case, bootsrap. 
 
-lasso_spec <- linear_reg(mode = 'regression', 
-                         penalty = tune(),
-                         mixture = 1) %>%
-  set_engine('glmnet')
-
-
-lambda_grid <- grid_regular(penalty(), levels = 5)
-
-
-```
-
-
-### Fitting resampled data and collecting metrics 
-
-```{r}
-
-
-
-lasso_grid <- tune_grid(
-  wf %>%
-  add_model(lasso_spec),
+tune_res <- tune_grid(
+  tune_rf_workflow,
   resamples = conmebol_boot,
-  grid = lambda_grid
+  grid = 10
 )
 
-
-
-lasso_tune_results <- lasso_grid %>%  collect_metrics()
-lasso_tune_results
+tune_res
 
 ```
 
-### Visualizing evalutaion metrics with penalization 
+## Visualizing Hyperparameters of Random Forest
 
 ```{r}
 
-
-lasso_tune_results %>% 
-  ggplot(aes(penalty, mean, color = .metric)) +
-  geom_errorbar(aes(
-    ymin = mean - std_err,
-    ymax = mean + std_err
-  ),
-  alpha = 0.5
-  ) +
-  geom_line(size  = 1) +
-  facet_wrap(~.metric, scales = 'free', nrow = 2) +
-  scale_x_log10() +
-  theme(legend.position = "none")
+tune_res %>%
+  collect_metrics() %>% 
+  filter(.metric == 'rmse') %>% 
+  select(mtry, min_n, mean) %>% 
+  pivot_longer(min_n:mtry,
+               values_to = 'value',
+               names_to = 'parameter'
+               ) %>% 
+   ggplot(aes(value, mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(x = NULL, y = "Residual Mean Squared Error") +
+  scale_y_continuous(label = scales::comma)
   
 
 ```
 
-### Finalizing Lasso Model
+This can be improved iterating and focusing on larger mtry values and narrowing down the min_n.
+
+## Final Random Forest Model 
+
+*Tuned Hyperparameters*
 
 ```{r}
 
+best_rmse <- select_best(tune_res, metric = 'rmse')
 
-highest_rsq <- lasso_grid %>%
-  select_best('rsq')
-
-final_lasso <- finalize_workflow(
-  wf %>%
-  add_model(lasso_tune),
-  highest_rsq
+final_rf_tune <- finalize_model(
+  rf_tune_spec,
+  best_rmse
 )
 
-
 ```
 
-### Variable Importance with Lasso Model
 
 ```{r}
-
 library(vip)
 
-final_lasso %>%
-  fit(conmebol_train) %>%
-  pull_workflow_fit() %>%
-  vi(lambda = highest_rsq$penalty)%>%
-  mutate(
-    Importance = abs(Importance),
-    Variable = fct_reorder(Variable, Importance)
-  ) %>%
-  ggplot(aes(x = Importance, y = Variable, fill = Sign)) +
-  geom_col() +
-  scale_x_continuous(expand = c(0, 0)) +
-  labs(y = NULL)
+rf_tuned_proc <- final_rf_tune %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(value ~ ., 
+      data = conmebol_train_proc)
+
+results_test_tuned <- results_test %>% 
+  bind_rows(rf_tuned_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Random Forest Tuned")) 
 
 
+results_test_tuned_grouped <- results_test_tuned  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
 
-```
 
-### Final Lasso Fit
-
-Evaluating on validation set. Not so great results.
-
-*Important*
-Unsure about rmse results since the outcome is log transformed. 
-
-```{r}
-
-final_lasso_fit <- last_fit(final_lasso,
-         conmebol_split) %>%
-  collect_metrics() 
-
-final_lasso_fit
+results_test_tuned_grouped
 
 
 ```
-
 
 
