@@ -1,0 +1,37 @@
+---
+title: "Data Preprocessing Exploration"
+author: "Nicolas Kaswalder"
+date: "8/12/2020"
+output: html_document
+---
+
+```{r}
+
+#Look for missing data
+plot_missing <- aggr(Conmebol, col = c('navyblue', 'red'), numbers = T, sortVars = T)
+
+# imputation using the mice package - mean imputation
+mean_impute <- mice(Conmebol, m = 5, meth = 'mean' )
+# look at the values
+mean_impute$imp
+
+# imputation using the mice package - regression ignoring model error
+regression_impute <- mice(Conmebol, m = 5, meth = 'norm.predict')
+# look at the values
+regression_impute$imp
+
+# imputation using the mice package - perturbation impute
+pert_impute <- mice(Conmebol, m = 5, meth = 'norm.nob')
+# look at the values
+pert_impute$imp
+
+
+# Conmebol with mean impute
+Mean_Conmebol<- complete(mean_impute)
+# Conmebol with regression prediction impute
+Regression_Conmebol <- complete(regression_impute)
+# Conmebol with pertubation impute
+Perturbation_Conmebol <- complete(pert_impute)
+
+```
+
