@@ -12,15 +12,13 @@ output: html_document
 source("Data Cleaning Script.R")
 
 Conmebol_model<- Conmebol %>% 
-  select(-id, -name, -height, -value2)
-  
-```
+  select(-id, -name, -position) 
 
+```
 
 # Data Split
 
 ```{r}
-
 set.seed(415)
 
 # Split data into training and testing data sets. 
@@ -30,7 +28,8 @@ conmebol_test <- testing(conmebol_split)
 
 
 # Creating bootstraps of training data to perform re-sampling and tuning methods
-conmebol_boot <- bootstraps(conmebol_train)
+conmebol_boot <- bootstraps(conmebol_train, 
+                            strata = best_position)
 
 ```
 
@@ -61,7 +60,8 @@ linear_fit %>%
 
 On the Training Data
 Adjusted R-Squared - 0.69
-Residual Mean Squared Error - *EU 6,150,279*
+Residual Mean Squared Error - OLD *EU 6,150,279* - NEW *EU 5,797,870* 
+Note: This improved with the height variable, position is not working
 
 
 This simple linear model serves as a guideline to improve future statistical models.
@@ -92,9 +92,9 @@ The following pre-processing steps have been performed.
 ```{r}
 
 conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
-  step_mutate(value_outliers_hi = case_when(value > 60000000 ~ 1, 
+  step_mutate(overall_outliers_hi = case_when(overall > 90 ~ 1, 
                                             TRUE ~ 0)) %>%
-  step_mutate(value_outliers_lo = case_when(value < 300000 ~ 1,
+  step_mutate(overall_outliers_lo = case_when(overall < 65 ~ 1, 
                                             TRUE ~ 0)) %>%
   step_corr(all_numeric(), -all_outcomes()) %>%
   step_other(best_position, threshold = 0.05) %>%
@@ -125,8 +125,7 @@ linear_fit_proc <- lin_mod_spec %>%
 
 tidy_results_linear <- linear_fit_proc %>%
   tidy() %>%
-  arrange(p.value) %>%
-  View()
+  arrange(p.value) 
 
 tidy_results_linear
 ```
@@ -189,6 +188,8 @@ results_test_grouped <- results_test  %>%
 results_test_grouped
 ```
 
+We are overfitting on the training set. Let's do resampling and hyper-parameter tunning
+
 ## Hyperparameter Tuning
 
 
@@ -248,13 +249,58 @@ tune_res %>%
 
 This can be improved iterating and focusing on larger mtry values and narrowing down the min_n.
 
+
+**Selecting a narrower and targeted  grid**
+
+```{r}
+
+rf_grid <- grid_regular(
+  mtry(range = c(20, 30)),
+  min_n(range = c(2, 15)),
+  levels = 5
+)
+
+```
+
+**Tuning the model for a second time**
+
+```{r}
+
+set.seed(415)
+regular_res <- tune_grid(
+  tune_rf_workflow,
+  resamples = conmebol_boot,
+  grid = rf_grid
+)
+
+regular_res
+
+```
+
+
+```{r}
+
+regular_res %>%
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  mutate(min_n = factor(min_n)) %>%
+  ggplot(aes(mtry, mean, color = min_n)) +
+  geom_line(alpha = 0.5, size = 1.5) +
+  geom_point() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(y = "Resisual Mean Squared Error")
+
+
+```
+
+
 ## Final Random Forest Model 
 
 *Tuned Hyperparameters*
 
 ```{r}
 
-best_rmse <- select_best(tune_res, metric = 'rmse')
+best_rmse <- select_best(regular_res, metric = 'rmse')
 
 final_rf_tune <- finalize_model(
   rf_tune_spec,
@@ -288,5 +334,3 @@ results_test_tuned_grouped
 
 
 ```
-
-
