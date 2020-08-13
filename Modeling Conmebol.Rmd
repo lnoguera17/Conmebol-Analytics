@@ -255,8 +255,8 @@ This can be improved iterating and focusing on larger mtry values and narrowing 
 ```{r}
 
 rf_grid <- grid_regular(
-  mtry(range = c(20, 30)),
-  min_n(range = c(2, 15)),
+  mtry(range = c(20, 25)),
+  min_n(range = c(2, 10)),
   levels = 5
 )
 
@@ -332,5 +332,24 @@ results_test_tuned_grouped <- results_test_tuned  %>%
 
 results_test_tuned_grouped
 
+```
+
+**Variable Importance**
+
+
+```{r}
+
+final_rf_tune %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(value ~ .,
+    data = conmebol_train_proc
+  ) %>%
+  vip(geom = "point") 
 
 ```
+
+
+
+
+
+
