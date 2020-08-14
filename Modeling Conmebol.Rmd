@@ -349,6 +349,19 @@ final_rf_tune %>%
 ```
 
 
+## Saving Model
+
+```{r}
+# Combining Workflows. Model, parameteers and preprocessing together
+
+workflow_rf_boost <- workflow() %>% 
+  add_model(final_rf_tune) %>% 
+  add_recipe(conmebol_rec)
+
+final_model <- fit(workflow_rf_boost, Conmebol_model)
+
+saveRDS(final_model, 'rf_final_model.rds')
+```
 
 
 
