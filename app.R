@@ -3,7 +3,12 @@ library(shiny)
 library(tidymodels)
 library(tidyverse)
 
-linear_model <- ('linear_model.rds')
+source("Data Cleaning Script.R")
+
+Conmebol_model<- Conmebol %>% 
+  select(-id, -name, -position) 
+
+model <- readRDS('rf_final_model.rds')
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
@@ -24,16 +29,19 @@ ui <- dashboardPage(
             box(valueBoxOutput('player_prediction')),
             box(selectInput('s_position', 
                            label = "Best Position",
-                           choices = conmebol$best_position,
+                           choices = Conmebol_model$best_position,
                            selected = 'ST')),
             box(selectInput('s_foot', 
                             label = "Strong Foot",
-                            choices = conmebol$foot,
+                            choices = Conmebol_model$foot,
                             selected = 'Right')),
             box(selectInput('s_nationality', 
                             label = "Nationality",
-                            choices = conmebol$nationality,
+                            choices = Conmebol_model$nationality,
                             selected = "Venezuela")),
+            box(sliderInput('s_height', 
+                            label = "Height",
+                            min = 5.10, max = 6.6, value = 5.6)),
             box(sliderInput('s_overall',
                             label = 'Overall',
                             min = 50, max = 100, value = 70)),
@@ -58,7 +66,7 @@ ui <- dashboardPage(
             box(sliderInput('s_long_passing',
                             label = 'Long Passing',
                             min = 10, max = 100, value = 60)),
-            box(sliderInput('s_contol',
+            box(sliderInput('s_control',
                             label = 'Control',
                             min = 10, max = 100, value = 60)),
             box(sliderInput('s_defense',
@@ -78,37 +86,38 @@ ui <- dashboardPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
-  table <- reactive({
-      
-      
-      table <- data.frame("best_position" = input$s_position,
-                 "foot" = input$s_foot,
-                 "nationality" = input$s_nationality,
-                 "overall" = input$s_overall,
-                 "attacking" = input$s_attacking,
-                 "crossing" = input$s_crossing, 
-                 'finishing' = input$s_finishing, 
-                 'short_passing' = input$s_short_passing, 
-                 'skill' = input$s_skill,
-                 'dribbling' = input$s_dribbling,
-                 'long_passing' = input$s_long_passing,
-                 'control' = input$s_control,
-                 'defense' = input$s_defense,
-                 "total_goalkeeping" = input$s_total_goalkeeping)
-  })
   
-  prediction <- reactive({ predict(
-      linear_fit, table())
-      
-      })
-
+  
   
   output$player_prediction <- renderValueBox({
-      
-      valueBox(value = prediction())
+    
+    
+    prediction <- predict(
+      model, tibble("best_position" = input$s_position,
+                        "foot" = input$s_foot,
+                        "nationality" = input$s_nationality,
+                        "overall" = input$s_overall,
+                        "attacking" = input$s_attacking,
+                        "crossing" = input$s_crossing, 
+                        'finishing' = input$s_finishing, 
+                        'short_passing' = input$s_short_passing, 
+                        'skill' = input$s_skill,
+                        'dribbling' = input$s_dribbling,
+                        'long_passing' = input$s_long_passing,
+                        'control' = input$s_control,
+                        'defense' = input$s_defense,
+                        "total_goalkeeping" = input$s_totalgoalkeeping,
+                        "height" = input$s_height))
+    
+    valueBox(
+      value = prediction,
+      subtitle = paste0('Players Market Value Estimation')
+    )
+    
+    
   })
-      
+
+
 
 }
 
