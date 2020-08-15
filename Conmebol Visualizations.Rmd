@@ -20,15 +20,192 @@ Conmebol %>%
 
 # Data Exploration
 
+# Histograms
 
-# Basic Histogram of Player's Value
+```{r}
+plot_histogram(Conmebol, geom_histogram_args = list(bins = 30L), ggtheme = theme_classic())
+
+Conmebol %>% 
+  ggplot(aes(x = skill, color=position)) +
+  ggtitle("Skill by Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(skill)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+Conmebol %>% 
+  ggplot(aes(x = overall, color=position)) +
+  geom_histogram() +
+  ggtitle("Overall by Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_vline(aes(xintercept=mean(overall)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+
+Conmebol %>% 
+  ggplot(aes(x = total_goalkeeping, color=position)) +
+  geom_histogram() +
+    ggtitle("Goalkeeping skills by Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_vline(aes(xintercept=mean(total_goalkeeping)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+Conmebol %>% 
+  ggplot(aes(x = dribbling, color=position)) +
+    ggtitle("Dribbling skills by Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(dribbling)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+Conmebol %>% 
+  ggplot(aes(x = finishing, color=position)) +
+  ggtitle("Finishing skills by Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(finishing)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+Conmebol %>% 
+  select(skill, overall, total_goalkeeping, dribbling, finishing) %>% 
+  summary()
+```
+
+# Histograms by Position
+```{r}
+
+#Lets look at our Goalkeepers
+
+Conmebol %>% 
+  filter(position == 'GK') %>% 
+  ggplot(aes(x = total_goalkeeping, color=foot)) +
+  ggtitle("Goalkeeing skills for Goalkeepers") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(total_goalkeeping)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets look at our Defense
+
+Conmebol %>% 
+  filter(position == 'DEF') %>% 
+  ggplot(aes(x = defense, color=best_position)) +
+  ggtitle("Defense skills for Defensive Players") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(defense)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets look at our Midfildiers
+
+#First lets see their control
+Conmebol %>% 
+  filter(position == 'MID') %>% 
+  ggplot(aes(x = control, color=best_position)) +
+  ggtitle("Short Passing skills for Midfilders") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(control)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets look at their dribbling
+
+Conmebol %>% 
+  filter(position == 'MID') %>% 
+  ggplot(aes(x = dribbling, color=best_position)) +
+  ggtitle("Dribbling skills for Midfilders") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(dribbling)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets finally look at their short_passing
+
+Conmebol %>% 
+  filter(position == 'MID') %>% 
+  ggplot(aes(x = short_passing, color=best_position)) +
+  ggtitle("Short Passing skills for Midfilders") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(short_passing)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets look at our Strikers
+
+#Lets look at their attacking skills
+
+Conmebol %>% 
+  filter(position == 'ATT') %>% 
+  ggplot(aes(x = attacking, color=best_position)) +
+  ggtitle("Attacking skills for Strikers") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(attacking)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets look at their finishing
+
+Conmebol %>% 
+  filter(position == 'ATT') %>% 
+  ggplot(aes(x = finishing, color=best_position)) +
+  ggtitle("Finishing skills for Strikers") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(finishing)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+```
+
+## Basic Histogram of Player's Value and Position
 
 ```{r}
 
+#Lets look at our value for all players
 Conmebol %>% 
-  ggplot(aes(value)) +
+  ggplot(aes(x = value, color=position)) +
+  ggtitle("Value per Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
   geom_histogram() +
+  geom_vline(aes(xintercept=mean(position)),
+            color="dark blue", linetype="dashed", size=1)+
   scale_x_continuous(labels = comma)
+
+
+#Lets look at the players whose value are greater than 10Million
+Conmebol %>% 
+    filter(value >= 10000000) %>% 
+  ggplot(aes(x = value, color=position)) +
+  ggtitle("Value per Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(position)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
+#Lets look at the players whose value are less than 500k
+
+Conmebol %>% 
+    filter(value <= 500000) %>% 
+  ggplot(aes(x = value, color=position)) +
+  ggtitle("Value per Position") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_histogram() +
+  geom_vline(aes(xintercept=mean(position)),
+            color="dark blue", linetype="dashed", size=1)+
+  scale_x_continuous(labels = comma)
+
 
 Conmebol %>% 
   select(value) %>% 
