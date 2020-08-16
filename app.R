@@ -10,21 +10,49 @@ Conmebol_model<- Conmebol %>%
 
 model <- readRDS('rf_final_model.rds')
 
-# Define UI for application that draws a histogram
+
+# Defining User Interactivity section
 ui <- dashboardPage(
     
-    dashboardHeader(title =  'South American Soccer Players Modelling'),
+    dashboardHeader(title =  "Conmebol Soccer Players"),
     
+    
+    # Sidebar Pages
     dashboardSidebar(
+      
+      # Extending the dashboard background to fit all variables
+      tags$head(tags$style(HTML('.content-wrapper { height: 1400px !important;}'))),
+      
+      sidebarMenu(
         menuItem(
-            'Conmebol',
-            tabName = "soccer_tab"
+            'Statistical Model', 
+            tabName = "soccer_tab", 
+            icon = icon('dashboard')),
+        
+        menuItem('Graphs', 
+                 tabName = 'graphs', 
+                 icon = icon('bar-chart')),
+        
+        menuItem(
+          "About",
+          tabName = 'about',
+          icon = icon('table')
         )
+      )
+        
     ),
     
     dashboardBody(
+      tags$head(tags$style(HTML(".small-box {width: 245px}"))),
+      tabItems(
         tabItem(
             tabName = 'soccer_tab',
+            
+            h2("Market Value Estimation of South American Soccer Players"),
+            
+            h4("\n\n Instructions:"),
+            
+            h5("\n\n Select all the characteristics of a player and we'll make our best value estimation for him"),
             
             box(valueBoxOutput('player_prediction')),
             box(selectInput('s_position', 
@@ -41,7 +69,10 @@ ui <- dashboardPage(
                             selected = "Venezuela")),
             box(sliderInput('s_height', 
                             label = "Height",
-                            min = 5.10, max = 6.6, value = 5.6)),
+                            min = min(Conmebol_model$height), 
+                            max = max(Conmebol_model$height), 
+                            value = mean(Conmebol_model$height),
+                            )),
             box(sliderInput('s_overall',
                             label = 'Overall',
                             min = 50, max = 100, value = 70)),
@@ -77,12 +108,22 @@ ui <- dashboardPage(
                             min = 25, max = 270, value = 150)),
             box(sliderInput('s_totalgoalkeeping',
                             label = 'Total Goalkeeping',
-                            min = 10, max = 450, value = 60))
-            
-        )
-    )
+                            min = 10, max = 450, value = 60)
+                )),
+        
+        tabItem(tabName = 'graphs', 
+                    h2("Nothing")
+                    ),
+        tabItem(tabName = 'about',
+                 h2("Authors"),
+                'This Shinyapp was developed by... \n\n The statistical model included in the 
+                first tab *(Statistical Model)* is a tuned random forest model with an 
+                Adjusted R-Squared of 0.88 and a Root Mean Squared Error of ~ EU 4,000,000 on new data ')
+        
+      )
     
-)
+    
+))
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
@@ -108,13 +149,14 @@ server <- function(input, output) {
                         'defense' = input$s_defense,
                         "total_goalkeeping" = input$s_totalgoalkeeping,
                         "height" = input$s_height))
+  
     
     valueBox(
-      value = prediction,
-      subtitle = paste0('Players Market Value Estimation')
+      value = paste0('€ ', scales::comma(as.numeric(prediction))),
+      subtitle = paste0("Player's Market Value Estimation")
     )
     
-    
+
   })
 
 
