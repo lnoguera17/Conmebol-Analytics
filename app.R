@@ -14,7 +14,7 @@ model <- readRDS('rf_final_model.rds')
 # Defining User Interactivity section
 ui <- dashboardPage(
     
-    dashboardHeader(title =  "Conmebol Soccer Players"),
+    dashboardHeader(title =  "Conmebol Soccer"),
     
     
     # Sidebar Pages
@@ -36,14 +36,14 @@ ui <- dashboardPage(
         menuItem(
           "About",
           tabName = 'about',
-          icon = icon('table')
-        )
+          icon = icon('table'))
       )
         
     ),
     
     dashboardBody(
       tags$head(tags$style(HTML(".small-box {width: 245px}"))),
+      
       tabItems(
         tabItem(
             tabName = 'soccer_tab',
@@ -55,6 +55,7 @@ ui <- dashboardPage(
             h5("\n\n Select all the characteristics of a player and we'll make our best value estimation for him"),
             
             box(valueBoxOutput('player_prediction')),
+            
             box(selectInput('s_position', 
                            label = "Best Position",
                            choices = Conmebol_model$best_position,
@@ -72,7 +73,7 @@ ui <- dashboardPage(
                             min = min(Conmebol_model$height), 
                             max = max(Conmebol_model$height), 
                             value = mean(Conmebol_model$height),
-                            )),
+                            step = 0.1)),
             box(sliderInput('s_overall',
                             label = 'Overall',
                             min = 50, max = 100, value = 70)),
@@ -103,9 +104,6 @@ ui <- dashboardPage(
             box(sliderInput('s_defense',
                             label = 'Defense',
                             min = 25, max = 270, value = 150)),
-            box(sliderInput('s_defense',
-                            label = 'Defense',
-                            min = 25, max = 270, value = 150)),
             box(sliderInput('s_totalgoalkeeping',
                             label = 'Total Goalkeeping',
                             min = 10, max = 450, value = 60)
@@ -116,7 +114,8 @@ ui <- dashboardPage(
                     ),
         tabItem(tabName = 'about',
                  h2("Authors"),
-                'This Shinyapp was developed by... \n\n The statistical model included in the 
+                
+                'This Shinyapp was developed by Nico and Luis...  \n\n The statistical model included in the 
                 first tab *(Statistical Model)* is a tuned random forest model with an 
                 Adjusted R-Squared of 0.88 and a Root Mean Squared Error of ~ EU 4,000,000 on new data ')
         
@@ -125,14 +124,14 @@ ui <- dashboardPage(
     
 ))
 
+
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   
   
-  
   output$player_prediction <- renderValueBox({
     
-    
+
     prediction <- predict(
       model, tibble("best_position" = input$s_position,
                         "foot" = input$s_foot,
@@ -155,6 +154,7 @@ server <- function(input, output) {
       value = paste0('€ ', scales::comma(as.numeric(prediction))),
       subtitle = paste0("Player's Market Value Estimation")
     )
+    
     
 
   })

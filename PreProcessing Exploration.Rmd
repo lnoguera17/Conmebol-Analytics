@@ -35,3 +35,29 @@ Perturbation_Conmebol <- complete(pert_impute)
 
 ```
 
+
+## User Defined Functions Examples
+
+
+```{r}
+
+# Visualization for reference!
+func_value_by_country <- function(dataset, nationality) {
+  
+Conmebol_num %>% 
+  filter(nationality == nationality) %>% 
+  mutate(best_position = fct_reorder(best_position, value)) %>% 
+  ggplot(aes(best_position, value)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = scales::dollar) +
+  coord_flip()
+  
+}
+
+
+func_value_by_country(Conmebol_num, 'Argentina')
+
+  
+```
+
+
