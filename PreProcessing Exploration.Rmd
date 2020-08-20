@@ -41,23 +41,97 @@ Perturbation_Conmebol <- complete(pert_impute)
 
 ```{r}
 
-# Visualization for reference!
-func_value_by_country <- function(dataset, nationality) {
-  
-Conmebol_num %>% 
+# Value by Position
+Conmebol %>% 
+    drop_na() %>% 
   filter(nationality == nationality) %>% 
   mutate(best_position = fct_reorder(best_position, value)) %>% 
-  ggplot(aes(best_position, value)) +
+  ggplot(aes(best_position, value, fill = position)) +
+     ggtitle("Value per Position") +
   geom_boxplot() +
   scale_y_continuous(labels = scales::dollar) +
-  coord_flip()
-  
-}
-
-
-func_value_by_country(Conmebol_num, 'Argentina')
-
+  theme_minimal()+
+    theme(legend.background = element_rect(fill="gray90", size=.5, linetype="dotted",))+
+     theme(legend.justification=c(0,0.5))+
+  theme(
+    plot.title = element_text(color="black", size=14, face="bold"),
+    axis.title.x = element_text(color="dark red", size=12, face="bold"),
+    axis.title.y = element_text(color="dark red", size=12, face="bold"))+
+  labs(x = 'Best Position', y = 'Value') +
+  coord_flip()+
+    scale_fill_discrete(name="Best Position")
   
 ```
 
+```{r}
+
+# Visualization for reference!
+Conmebol %>% 
+    drop_na() %>% 
+  filter(nationality == nationality) %>% 
+  mutate(nationality = fct_reorder(nationality, -value)) %>% 
+  ggplot(aes(nationality, value, fill = position)) +
+      ggtitle("Value per Position & Nationality") +
+  geom_boxplot() +
+  scale_y_continuous(labels = scales::dollar) +
+    theme_minimal()+
+    theme(legend.background = element_rect(fill="gray90", size=.5, linetype="dotted"))+
+    theme(legend.justification=c(1,0), legend.position=c(1,0.6))+
+  theme(
+    plot.title = element_text(color="black", size=14, face="bold"),
+    axis.title.x = element_text(color="dark red", size=12, face="bold"),
+    axis.title.y = element_text(color="dark red", size=12, face="bold"))+
+  labs(x = 'Nationality', y = 'Value') +
+    scale_fill_discrete(name="Position")
+
+```
+
+```{r}
+
+Conmebol %>% 
+  filter(nationality == 'Argentina') %>%
+    group_by(best_position) %>% 
+    summarise(value=mean(value)) %>% 
+    drop_na() %>% 
+    mutate(best_position = fct_reorder(best_position, -value)) %>% 
+    ggplot(aes(x= best_position, y = value, color = best_position))+
+    geom_point(size = 5)+
+    geom_segment(aes(x=best_position, xend = best_position, y = value, yend = 0))+
+    theme_minimal()+
+     ggtitle("Average Value Per Position") +
+     theme(legend.position = "none")+
+  theme(
+    plot.title = element_text(color="black", size=14, face="bold"),
+    axis.title.x = element_text(color="dark blue", size=12, face="bold"),
+    axis.title.y = element_text(color="dark blue", size=12, face="bold"))+
+  labs(x = 'Best Position', y = 'Value') +
+  scale_y_continuous(n.breaks = 10,labels = scales::dollar)+
+    scale_fill_discrete(name="Best Position")
+
+
+Conmebol %>% 
+  filter(nationality == 'Argentina', position == 'ATT') %>%
+    group_by(best_position) %>% 
+    summarise(value=max(value)) %>% 
+    drop_na() %>% 
+    mutate(best_position = fct_reorder(best_position, -value)) %>% 
+    ggplot(aes(x= best_position, y = value, color = best_position))+
+    geom_point(size = 5)+
+    geom_segment(aes(x=best_position, xend = best_position, y = value, yend = 0))+
+    theme_minimal()+
+     ggtitle("Max Value Per Position") +
+    theme(legend.position = "none")+
+  theme(
+    plot.title = element_text(color="black", size=14, face="bold"),
+    axis.title.x = element_text(color="dark blue", size=12, face="bold"),
+    axis.title.y = element_text(color="dark blue", size=12, face="bold"))+
+  labs(x = 'Best Position', y = 'Value') +
+  scale_y_continuous(labels = scales::dollar)+
+    scale_fill_discrete(name="Best Position")
+
+
+
+  
+```
+)
 
