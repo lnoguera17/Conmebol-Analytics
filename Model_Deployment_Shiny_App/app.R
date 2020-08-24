@@ -1,16 +1,17 @@
+# Loading necessary libraries to run the app
 library(shinydashboard)
 library(shiny)
 library(tidymodels)
 library(tidyverse)
 
-source("Data Cleaning Script.R")
+source("Wrangling_and_Cleaning/Data Cleaning Script.R")
 
-Conmebol
-
+# Bringing data into the Shiny App
 Conmebol_model<- Conmebol %>% 
   select(-id, -name, -position) 
 
-model <- readRDS('rf_final_model.rds')
+# Importing the random forest model to the app
+model <- readRDS('Statistical_Model/rf_final_model.rds')
 
 
 # Defining User Interactivity section
@@ -38,7 +39,7 @@ ui <- dashboardPage(
       menuItem(
         "About",
         tabName = 'about',
-        icon = icon('table'))
+        icon = icon('folder-open'))
     )
     
   ),
@@ -138,11 +139,14 @@ ui <- dashboardPage(
               
       ),
       tabItem(tabName = 'about',
-              h2("Authors"),
+              h2("About this project"),
               
-              'This Shinyapp was developed by Nico and Luis...  \n\n The statistical model included in the 
-                first tab *(Statistical Model)* is a tuned random forest model with an 
-                Adjusted R-Squared of 0.88 and a Root Mean Squared Error of ~ EU 4,000,000 on new data ')
+              'This Shinyapp was developed by Nicolas Kaswalder and Luis Noguera.
+                The model included in the Statistical Model tab is a tuned random forest model with an 
+                Adjusted R-Squared of 0.88 and a Root Mean Squared Error of ~ EU 4,000,000 on the validation set.',
+              
+              
+              "Data has been scraped from the SoFiFa website and modeled using Tidymodels. To access the remote repository visit: https://github.com/lnoguera17/Conmebol-Scrape")
       
     )
     

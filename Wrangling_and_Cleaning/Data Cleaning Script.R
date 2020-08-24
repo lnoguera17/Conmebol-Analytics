@@ -1,14 +1,16 @@
+
+
 # Data Load 
 
 pacman::p_load(readr, tidyverse, plotly, tidymodels, mice, kableExtra, stringr, DescTools, scales, doParallel)
 
-Conmebol_raw <- read_csv("conmebol.csv") %>%
+
+Conmebol_raw <- read_csv("Scrape_and_Raw_Data/conmebol.csv") %>%
   select(-X1, -rating) 
 
 # Data Cleaning
 
 #Lets convert value into a number and clean the names of the players
-
 Conmebol_num <- Conmebol_raw %>%
   mutate(value2 = str_sub(value,-1,-1),
          value = parse_number(value),
@@ -20,6 +22,7 @@ Conmebol_num <- Conmebol_raw %>%
                               best_position == "GK" ~ "GK",
                               TRUE ~ "MID"))
 
+# Final data to use for the model
 Conmebol <- Conmebol_num %>% 
   na_if(.,0) %>% 
   separate(height, c("Foot", "Inches")) %>%
