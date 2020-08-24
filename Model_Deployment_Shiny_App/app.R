@@ -146,7 +146,7 @@ ui <- dashboardPage(
                 Adjusted R-Squared of 0.88 and a Root Mean Squared Error of ~ EU 4,000,000 on the validation set.',
               
               
-              "Data has been scraped from the SoFiFa website and modeled using Tidymodels. To access the remote repository visit: https://github.com/lnoguera17/Conmebol-Scrape")
+              "Data has been scraped from the SoFiFa website and modeled using Tidymodels. To access the remote repository visit: https://github.com/lnoguera17/Conmebol-Analytics")
       
     )
     
