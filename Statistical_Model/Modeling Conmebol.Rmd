@@ -1,0 +1,368 @@
+---
+title: "Modein Conmebol"
+author: "Luis Noguera"
+date: "5/31/2020"
+output: html_document
+---
+
+# Data Load
+
+```{r}
+
+source("Data Cleaning Script.R")
+
+Conmebol_model<- Conmebol %>% 
+  select(-id, -name, -position) 
+
+```
+
+# Data Split
+
+```{r}
+set.seed(415)
+
+# Split data into training and testing data sets. 
+conmebol_split <- initial_split(Conmebol_model, prop = .8, strata = best_position)
+conmebol_train <- training(conmebol_split) 
+conmebol_test <- testing(conmebol_split)
+
+
+# Creating bootstraps of training data to perform re-sampling and tuning methods
+conmebol_boot <- bootstraps(conmebol_train, 
+                            strata = best_position)
+
+```
+
+# Fitting Statistical Models - 
+
+- Linear Regression Model - Use as baseline
+- Linear Regression Model with data Pre-processing. 
+- Random Forest Model - XGBoost
+
+## Linear Regression Model - (Using this model as baseline)
+
+```{r}
+set.seed(415)
+linear_fit <- lm(value ~ ., data = conmebol_train)
+summary(linear_fit)
+
+
+# Residual Mean Squared Error of Baseline Model
+linear_fit %>%
+  predict(conmebol_train) %>%
+  as_tibble() %>%
+  mutate(truth = replace_na(conmebol_train$value, 0),
+         model = "Linear Model Baseline") %>%
+  rename("estimate" = "value") %>%
+  rmse(truth = truth, estimate = estimate) 
+
+```
+
+On the Training Data
+Adjusted R-Squared - 0.69
+Residual Mean Squared Error - OLD *EU 6,150,279* - NEW *EU 5,797,870* 
+Note: This improved with the height variable, position is not working
+
+
+This simple linear model serves as a guideline to improve future statistical models.
+
+
+## Data Pre-Processing 
+
+How far can we go with a simple linear model and working on data pre-processing. 
+
+The following pre-processing steps have been performed.
+
+- Removed highly correlated features to prevent multicolinearity. 
+
+- Created two variables for *high* and *low* value Outliers
+
+- Narrowed *best_position* feature to values with a rate of occurrence greater than 5%.
+
+- Created dummy variable for all categorical variables.
+
+- Impute the outcome *Value* using K-Nearest Neighbors.
+
+- Centered and scaled all predictors.
+
+- Removed possible variables that could contain a single value.
+
+- Removed the *id* variable
+
+```{r}
+
+conmebol_rec <- recipe(value ~ ., data = conmebol_train) %>%
+  step_mutate(overall_outliers_hi = case_when(overall > 90 ~ 1, 
+                                            TRUE ~ 0)) %>%
+  step_mutate(overall_outliers_lo = case_when(overall < 65 ~ 1, 
+                                            TRUE ~ 0)) %>%
+  step_corr(all_numeric(), -all_outcomes()) %>%
+  step_other(best_position, threshold = 0.05) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_knnimpute(value, neighbors = 5) %>%
+  step_normalize(all_predictors(), -all_outcomes())  %>%
+  step_zv(all_predictors()) 
+
+conmebol_prep <- conmebol_rec %>% prep()
+
+conmebol_train_proc <- bake(conmebol_prep, conmebol_train) 
+conmebol_test_proc <- bake(conmebol_prep, conmebol_test) 
+
+  
+```
+
+# Linear Model with pre-processed data
+
+```{r}
+
+lin_mod_spec <- linear_reg() %>%
+  set_mode('regression') %>%
+  set_engine('lm')
+
+linear_fit_proc <- lin_mod_spec %>%
+  fit(value ~.,
+      data = conmebol_train_proc)
+
+tidy_results_linear <- linear_fit_proc %>%
+  tidy() %>%
+  arrange(p.value) 
+
+tidy_results_linear
+```
+
+# Random Forest Model
+
+
+```{r}
+
+rf_mod_spec <- rand_forest() %>%
+  set_mode('regression') %>%
+  set_engine('ranger')
+  
+rf_fit_proc <- rf_mod_spec %>%
+  fit(value ~ ., 
+      data = conmebol_train_proc)
+
+rf_fit_proc
+
+```
+
+## Model Evaluation
+
+**Training Data Evaluation**
+
+```{r}
+
+results_train <- linear_fit_proc %>%
+  predict(conmebol_train_proc) %>%
+  mutate(truth = conmebol_train_proc$value,
+         model = "Linear Model") %>%
+  bind_rows(rf_fit_proc %>%
+  predict(conmebol_train_proc) %>%
+  mutate(truth = conmebol_train_proc$value,
+         model = "Random Forest"))
+  
+results_train_grouped <- results_train  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
+  
+```
+
+**Testing Data Evaluation**
+
+```{r}
+
+results_test <- linear_fit_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Linear Model") %>%
+  bind_rows(rf_fit_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Random Forest"))
+  
+results_test_grouped <- results_test  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
+
+results_test_grouped
+```
+
+We are overfitting on the training set. Let's do resampling and hyper-parameter tunning
+
+## Hyperparameter Tuning
+
+
+```{r}
+
+rf_tune_spec <- rand_forest(
+  mtry = tune(),
+  trees = 500,
+  min_n = tune(),
+) %>%
+  set_mode('regression') %>%
+  set_engine('ranger')
+
+tune_rf_workflow <- workflow() %>%
+  add_recipe(conmebol_rec) %>% 
+  add_model(rf_tune_spec)
+
+```
+
+```{r}
+doParallel::registerDoParallel()
+set.seed(415)
+
+
+# Choosing the resample method and training the data - In this case, bootsrap. 
+
+tune_res <- tune_grid(
+  tune_rf_workflow,
+  resamples = conmebol_boot,
+  grid = 10
+)
+
+tune_res
+
+```
+
+## Visualizing Hyperparameters of Random Forest
+
+```{r}
+
+tune_res %>%
+  collect_metrics() %>% 
+  filter(.metric == 'rmse') %>% 
+  select(mtry, min_n, mean) %>% 
+  pivot_longer(min_n:mtry,
+               values_to = 'value',
+               names_to = 'parameter'
+               ) %>% 
+   ggplot(aes(value, mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(x = NULL, y = "Residual Mean Squared Error") +
+  scale_y_continuous(label = scales::comma)
+  
+
+```
+
+This can be improved iterating and focusing on larger mtry values and narrowing down the min_n.
+
+
+**Selecting a narrower and targeted  grid**
+
+```{r}
+
+rf_grid <- grid_regular(
+  mtry(range = c(20, 25)),
+  min_n(range = c(2, 10)),
+  levels = 5
+)
+
+```
+
+**Tuning the model for a second time**
+
+```{r}
+
+set.seed(415)
+regular_res <- tune_grid(
+  tune_rf_workflow,
+  resamples = conmebol_boot,
+  grid = rf_grid
+)
+
+regular_res
+
+```
+
+
+```{r}
+
+regular_res %>%
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  mutate(min_n = factor(min_n)) %>%
+  ggplot(aes(mtry, mean, color = min_n)) +
+  geom_line(alpha = 0.5, size = 1.5) +
+  geom_point() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(y = "Resisual Mean Squared Error")
+
+
+```
+
+
+## Final Random Forest Model 
+
+*Tuned Hyperparameters*
+
+```{r}
+
+best_rmse <- select_best(regular_res, metric = 'rmse')
+
+final_rf_tune <- finalize_model(
+  rf_tune_spec,
+  best_rmse
+)
+
+```
+
+
+```{r}
+library(vip)
+
+rf_tuned_proc <- final_rf_tune %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(value ~ ., 
+      data = conmebol_train_proc)
+
+results_test_tuned <- results_test %>% 
+  bind_rows(rf_tuned_proc %>%
+  predict(conmebol_test_proc) %>%
+  mutate(truth = conmebol_test_proc$value,
+         model = "Random Forest Tuned")) 
+
+
+results_test_tuned_grouped <- results_test_tuned  %>%
+  group_by(model) %>%
+  rmse(truth = truth, estimate = .pred)
+
+
+results_test_tuned_grouped
+
+```
+
+**Variable Importance**
+
+
+```{r}
+
+final_rf_tune %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(value ~ .,
+    data = conmebol_train_proc
+  ) %>%
+  vip(geom = "point") 
+
+```
+
+
+## Saving Model
+
+```{r}
+# Combining Workflows. Model, parameteers and preprocessing together
+
+workflow_rf_boost <- workflow() %>% 
+  add_model(final_rf_tune) %>% 
+  add_recipe(conmebol_rec)
+
+final_model <- fit(workflow_rf_boost, Conmebol_model)
+
+saveRDS(final_model, 'rf_final_model.rds')
+```
+
+
+
+
