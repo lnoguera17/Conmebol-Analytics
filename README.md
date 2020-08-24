@@ -2,7 +2,7 @@
 
 ### Insipiration and Future Work
 
-This short project has been created solely for enjoyment and learning purposes, however, we believe that similar approaches can be performed at scale, capturing strong signals of a player's season, latest games played information and multiple data points beyond a soccer player's performance to automatically and effectively identify attractive buying opportunities during the transfer market window.
+This project has been created solely for enjoyment and learning purposes, however, we believe that similar approaches can be performed at scale, capturing strong signals of a player's season, latest games played information and multiple data points beyond a soccer player's performance to automatically and effectively identify attractive buying opportunities during the transfer market window.
 
 ### Web Scraping 
 
