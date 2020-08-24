@@ -28,3 +28,5 @@ Conmebol <- Conmebol_num %>%
   separate(height, c("Foot", "Inches")) %>%
   mutate(height = as.double(str_c(Foot, '.', Inches))) %>% 
   select(-Foot, -Inches, -value2)
+
+
