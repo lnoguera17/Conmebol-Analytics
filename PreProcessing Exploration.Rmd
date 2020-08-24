@@ -41,13 +41,13 @@ Perturbation_Conmebol <- complete(pert_impute)
 
 ```{r}
 
-# Value by Position
+# Value by Best Position
 Conmebol %>% 
     drop_na() %>% 
   filter(nationality == nationality) %>% 
   mutate(best_position = fct_reorder(best_position, value)) %>% 
   ggplot(aes(best_position, value, fill = position)) +
-     ggtitle("Value per Position") +
+     ggtitle("Value by Best Position") +
   geom_boxplot() +
   scale_y_continuous(labels = scales::dollar) +
   theme_minimal()+
@@ -65,7 +65,7 @@ Conmebol %>%
 
 ```{r}
 
-# Visualization for reference!
+# Value per Position & Nationality
 Conmebol %>% 
     drop_na() %>% 
   filter(nationality == nationality) %>% 
@@ -88,8 +88,10 @@ Conmebol %>%
 
 ```{r}
 
+#Average value per Position
 Conmebol %>% 
-  filter(nationality == 'Argentina') %>%
+  drop_na() %>% 
+  filter(nationality == nationality) %>%
     group_by(best_position) %>% 
     summarise(value=mean(value)) %>% 
     drop_na() %>% 
@@ -108,9 +110,10 @@ Conmebol %>%
   scale_y_continuous(n.breaks = 10,labels = scales::dollar)+
     scale_fill_discrete(name="Best Position")
 
-
+#Max Value per Position
 Conmebol %>% 
-  filter(nationality == 'Argentina', position == 'ATT') %>%
+  drop_na() %>% 
+  filter(nationality == nationality, position == position) %>%
     group_by(best_position) %>% 
     summarise(value=max(value)) %>% 
     drop_na() %>% 
