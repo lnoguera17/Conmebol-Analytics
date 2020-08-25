@@ -15,7 +15,7 @@ Conmebol_model<- Conmebol %>%
   select(-id, -name, -position) 
 
 # Importing the random forest model to the app
-model <- readRDS('Statistical_Model/rf_final_model.rds')
+model <- readRDS('rf_final_model.rds')
 
 
 # Defining User Interactivity section
