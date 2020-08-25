@@ -1,9 +1,13 @@
+
+if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
+if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
+
+
 # Loading necessary libraries to run the app
 library(shinydashboard)
 library(shiny)
-library(tidymodels)
-library(tidyverse)
 
+# Sourcing the data cleaning script
 source("Wrangling_and_Cleaning/Data Cleaning Script.R")
 
 # Bringing data into the Shiny App

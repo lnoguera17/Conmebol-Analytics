@@ -1,10 +1,24 @@
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(tidymodels)) install.packages("tidymodels", repos = "http://cran.us.r-project.org")
+if(!require(mice)) install.packages("mice", repos = "http://cran.us.r-project.org")
+if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
+if(!require(DescTools)) install.packages("DescTools", repos = "http://cran.us.r-project.org")
+if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(doParallel)) install.packages("doParallel", repos = "http://cran.us.r-project.org")
+
+
+# Load Libraries
+library(tidyverse)
+library(tidymodels)
+library(mice)
+library(stringr)
+library(DescTools)
+library(scales)
+library(doParallel)
 
 
 # Data Load 
-
-pacman::p_load(readr, tidyverse, plotly, tidymodels, mice, kableExtra, stringr, DescTools, scales, doParallel)
-
-
 Conmebol_raw <- read_csv("Scrape_and_Raw_Data/conmebol.csv") %>%
   select(-X1, -rating) 
 

@@ -1,0 +1,13 @@
+name: Conmebol-Analytics
+title: Conmebol-Analytics
+username:
+account: lnoguera
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2703288
+bundleId: 3553404
+url: https://lnoguera.shinyapps.io/Conmebol-Analytics/
+when: 1598314327.42876
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|README.md|Visualizations/Conmebol Visualizations.Rmd|Wrangling_and_Cleaning/PreProcessing Exploration.Rmd
