@@ -11,8 +11,6 @@ Conmebol_model<- Conmebol %>%
 
 
 # Data Split
-
-
 set.seed(415)
 
 # Split data into training and testing data sets. 

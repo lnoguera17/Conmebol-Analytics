@@ -28,13 +28,15 @@ To keep track of the project scope, progress, stories and organization we used *
 
 If you are looking to improve the statistical model or have creative ideas to incorporate in the dashboard, reach out to any of the contributors. Looking forward to connect and work together!
 
-### To Barcelona fans, specially Nico Kaswalder 
-
-![Barca 8-2](https://img-9gag-fun.9cache.com/photo/aBmL92A_700bwp.webp)
-
 
 **Project Contributors:** 
 
-[Luis Noguera](https://www.linkedin.com/in/luis-noguera/)
+[Luis Noguera](https://www.notion.so/Luis-Noguera-cee07564f2854064891726d432c8e572)
 
 [Nicolas Kaswalder](https://www.linkedin.com/in/nicolas-kaswalder)
+
+
+### To all Barcelona fans, specially Nico Kaswalder 
+
+![Barca 8-2](https://img-9gag-fun.9cache.com/photo/aBmL92A_700bwp.webp)
+

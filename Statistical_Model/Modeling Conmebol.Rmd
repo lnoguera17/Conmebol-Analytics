@@ -9,7 +9,7 @@ output: html_document
 
 ```{r}
 
-source("Data Cleaning Script.R")
+source("Wrangling_and_Cleaning/Data Cleaning Script.R")
 
 Conmebol_model<- Conmebol %>% 
   select(-id, -name, -position) 
