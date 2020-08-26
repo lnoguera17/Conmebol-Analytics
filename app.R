@@ -69,15 +69,24 @@ ui <- dashboardPage(
         
         box(selectInput('s_position', 
                         label = "Best Position",
-                        choices = Conmebol_model$best_position,
+                        choices = Conmebol %>% select(best_position) %>% 
+                          distinct() %>% 
+                          arrange(best_position) %>% 
+                          drop_na(),
                         selected = 'ST')),
         box(selectInput('s_foot', 
                         label = "Strong Foot",
-                        choices = Conmebol_model$foot,
+                        choices = Conmebol %>% select(foot) %>% 
+                          distinct() %>% 
+                          arrange(foot) %>% 
+                          drop_na(),
                         selected = 'Right')),
         box(selectInput('s_nationality', 
                         label = "Nationality",
-                        choices = Conmebol_model$nationality,
+                        choices = Conmebol %>% select(nationality) %>% 
+                          distinct() %>% 
+                          arrange(nationality) %>% 
+                          drop_na(),
                         selected = "Venezuela")),
         box(sliderInput('s_height', 
                         label = "Height",
