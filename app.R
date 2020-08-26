@@ -1,3 +1,7 @@
+# Sourcing the data cleaning script
+source("Wrangling_and_Cleaning/Data Cleaning Script.R")
+
+source("simple_models.R")
 
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
@@ -6,16 +10,16 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 # Loading necessary libraries to run the app
 library(shinydashboard)
 library(shiny)
+library(tidymodels)
+library(tidyverse)
 
-# Sourcing the data cleaning script
-source("Wrangling_and_Cleaning/Data Cleaning Script.R")
 
 # Bringing data into the Shiny App
 Conmebol_model<- Conmebol %>% 
   select(-id, -name, -position) 
 
 # Importing the random forest model to the app
-model <- readRDS('rf_final_model.rds')
+model <- readRDS('final_rf_model.rds')
 
 
 # Defining User Interactivity section
@@ -188,9 +192,9 @@ server <- function(input, output) {
       subtitle = paste0("Player's Market Value Estimation")
     )
     
-    
-    
   })
+  
+  
   
   output$best_position_value <- renderPlot( { 
     

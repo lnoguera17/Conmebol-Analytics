@@ -18,7 +18,7 @@ Fitted a base linear model to compare more poweful ones, pre-processed, resample
 
 ### Dashboard and Model Deployment
 
-Created a dashboard using Shinydashboards to provide users the ability to set new parameters for a new player and automatically estimate his market value. Also, the shinydashboard offer dynamic objects to visualize and provide information about the soccer players in the dataset. 
+Created a dashboard using Shinydashboards to provide users the ability to set new parameters for a new player and automatically estimate his market value. Also, the shinydashboard offer dynamic objects to visualize and provide information about the soccer players in the dataset. [Access the Shinyapp here](https://lnoguera.shinyapps.io/Conmebol-Analytics/)
 
 ### Collaboration Tools 
 

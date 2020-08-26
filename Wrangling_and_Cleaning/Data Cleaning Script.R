@@ -7,6 +7,7 @@ if(!require(DescTools)) install.packages("DescTools", repos = "http://cran.us.r-
 if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
 if(!require(doParallel)) install.packages("doParallel", repos = "http://cran.us.r-project.org")
 if(!require(Rcpp)) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
+if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-project.org")
 
 
 # Load Libraries
@@ -18,6 +19,7 @@ library(DescTools)
 library(scales)
 library(doParallel)
 library(Rcpp)
+
 
 
 # Data Load 
