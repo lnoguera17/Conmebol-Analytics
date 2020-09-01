@@ -54,7 +54,6 @@ saveRDS(simple_model, 'simple_model.rds')
 
 #### Random Forest Model
 
-
 set.seed(415)
 
 rf_mod_spec <- rand_forest(
