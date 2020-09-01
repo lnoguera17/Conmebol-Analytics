@@ -339,12 +339,16 @@ results_test_tuned_grouped
 
 ```{r}
 
-final_rf_tune %>%
+plot_importance <- final_rf_tune %>%
   set_engine("ranger", importance = "permutation") %>%
   fit(value ~ .,
     data = conmebol_train_proc
   ) %>%
-  vip(geom = "point") 
+  vip(geom = "col") +
+  labs(title = 'Top 10 Important Variables for the model') +
+  theme_minimal()
+
+plot_importance
 
 ```
 

@@ -1,6 +1,4 @@
-
 # Sourcinf Libraries and data
-
 source("Wrangling_and_Cleaning/Data Cleaning Script.R")
 
 
@@ -59,17 +57,20 @@ saveRDS(simple_model, 'simple_model.rds')
 
 set.seed(415)
 
-rf_mod_spec <- rand_forest() %>%
+rf_mod_spec <- rand_forest(
+  trees = 500,
+  mtry = 20,
+  min_n = 2
+) %>%
   set_mode('regression') %>%
-  set_engine('ranger')
+  set_engine('ranger', importance = 'permutation')
 
 rf_wf <- workflow() %>% 
   add_recipe(conmebol_rec) %>% 
   add_model(rf_mod_spec) 
 
-final_rf_model <- fit(rf_wf, Conmebol_model)
+final_rf_model <- last_fit(rf_wf, conmebol_split)
 
 saveRDS(final_rf_model, 'final_rf_model.rds')
-
 
 

@@ -5,9 +5,9 @@ account: lnoguera
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2703288
-bundleId: 3553451
+bundleId: 3558289
 url: https://lnoguera.shinyapps.io/Conmebol-Analytics/
-when: 1598315288.14624
+when: 1598413172.83809
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .RData|README.md|Visualizations/Conmebol Visualizations.Rmd|Wrangling_and_Cleaning/PreProcessing Exploration.Rmd
+ignoredFiles: README.md|Visualizations/Conmebol Visualizations.Rmd|Wrangling_and_Cleaning/PreProcessing Exploration.Rmd
